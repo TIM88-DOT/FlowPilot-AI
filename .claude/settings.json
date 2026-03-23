@@ -1,0 +1,73 @@
+{
+  "model": "claude-sonnet-4-5",
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Write(src/**)",
+      "Write(tests/**)",
+      "Write(docs/**)",
+      "Write(infra/**)",
+      "Write(.claude/**)",
+      "Write(docker-compose.yml)",
+      "Write(*.sln)",
+      "Write(Directory.Build.props)",
+      "Bash(dotnet build *)",
+      "Bash(dotnet test *)",
+      "Bash(dotnet run *)",
+      "Bash(dotnet ef *)",
+      "Bash(dotnet add *)",
+      "Bash(npm run *)",
+      "Bash(npm install *)",
+      "Bash(docker compose up *)",
+      "Bash(docker compose down *)",
+      "Bash(git status)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(git branch *)",
+      "Bash(git push origin *)",
+      "Bash(gh pr *)",
+      "Bash(gh issue *)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/appsettings.Production.json)",
+      "Read(**/appsettings.Staging.json)",
+      "Read(secrets/**)",
+      "Bash(rm -rf *)",
+      "Bash(git push --force)",
+      "Bash(git push origin main)",
+      "Bash(dotnet ef database drop *)",
+      "Bash(dotnet ef migrations remove)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write(tests/**/*.cs)",
+        "command": "dotnet test FlowPilot.sln --no-build -q --filter 'Category!=Integration' 2>&1 | tail -8"
+      },
+      {
+        "matcher": "Write(src/FlowPilot.Web/src/**/*.tsx)",
+        "command": "cd src/FlowPilot.Web && npm run type-check 2>&1 | tail -10"
+      },
+      {
+        "matcher": "Write(src/**/*.cs)",
+        "command": "dotnet build FlowPilot.sln --no-incremental -q 2>&1 | tail -5"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash(dotnet ef migrations add *)",
+        "command": "echo 'MIGRATION CHECK: Verify BaseEntity fields, TenantId FK, IsDeleted bool, snake_case columns, and ScheduledAt index are present where needed.'"
+      },
+      {
+        "matcher": "Bash(git commit *)",
+        "command": "dotnet test FlowPilot.sln -q --filter 'Category!=Integration' 2>&1 | tail -5"
+      }
+    ]
+  }
+}

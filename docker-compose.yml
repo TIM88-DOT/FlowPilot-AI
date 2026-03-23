@@ -1,0 +1,34 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: flowpilot_db
+    environment:
+      POSTGRES_DB: flowpilot_dev
+      POSTGRES_USER: flowpilot
+      POSTGRES_PASSWORD: flowpilot_dev_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowpilot -d flowpilot_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  seq:
+    image: datalust/seq:latest
+    container_name: flowpilot_seq
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "5341:5341"  # ingestion
+      - "8081:80"    # UI → http://localhost:8081
+    volumes:
+      - seq_data:/data
+
+volumes:
+  postgres_data:
+  seq_data:
