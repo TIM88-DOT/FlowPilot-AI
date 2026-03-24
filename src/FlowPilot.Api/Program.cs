@@ -8,8 +8,23 @@ using FlowPilot.Shared.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
+
+try
+{
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.Seq(context.Configuration["Seq:ServerUrl"] ?? "http://localhost:5341"));
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -75,6 +90,7 @@ var app = builder.Build();
 // ---------------------------------------------------------------------------
 // Middleware pipeline
 // ---------------------------------------------------------------------------
+app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -148,6 +164,16 @@ authGroup.MapPost("/logout", async (IAuthService authService, HttpContext httpCo
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 app.Run();
+
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
