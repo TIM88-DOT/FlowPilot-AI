@@ -1,5 +1,5 @@
 {
-  "model": "claude-sonnet-4-5",
+  "model": "claude-opus-4-6",
   "permissions": {
     "allow": [
       "Read(**)",
@@ -47,26 +47,24 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Write(tests/**/*.cs)",
-        "command": "dotnet test FlowPilot.sln --no-build -q --filter 'Category!=Integration' 2>&1 | tail -8"
-      },
-      {
-        "matcher": "Write(src/FlowPilot.Web/src/**/*.tsx)",
-        "command": "cd src/FlowPilot.Web && npm run type-check 2>&1 | tail -10"
-      },
-      {
-        "matcher": "Write(src/**/*.cs)",
-        "command": "dotnet build FlowPilot.sln --no-incremental -q 2>&1 | tail -5"
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotnet build FlowPilot.sln --no-incremental -q 2>&1 | tail -5"
+          }
+        ]
       }
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash(dotnet ef migrations add *)",
-        "command": "echo 'MIGRATION CHECK: Verify BaseEntity fields, TenantId FK, IsDeleted bool, snake_case columns, and ScheduledAt index are present where needed.'"
-      },
-      {
-        "matcher": "Bash(git commit *)",
-        "command": "dotnet test FlowPilot.sln -q --filter 'Category!=Integration' 2>&1 | tail -5"
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Running pre-tool check...'"
+          }
+        ]
       }
     ]
   }

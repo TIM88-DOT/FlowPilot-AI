@@ -1,6 +1,30 @@
-  .claude/settings.local.json
-  .claude/memory.json
-  .claude/.sessions/
-  **/appsettings.Production.json
-  **/appsettings.Staging.json
-  .env
+# Build
+**/bin/
+**/obj/
+**/out/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+*.csproj.user
+
+# Secrets & env
+.env
+**/appsettings.Production.json
+**/appsettings.Staging.json
+**/secrets/
+
+# Claude Code local
+.claude/settings.local.json
+.claude/memory.json
+.claude/.sessions/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Docs (binary)
+*.docx

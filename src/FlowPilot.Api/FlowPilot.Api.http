@@ -1,0 +1,6 @@
+@FlowPilot.Api_HostAddress = http://localhost:5216
+
+GET {{FlowPilot.Api_HostAddress}}/health
+Accept: application/json
+
+###
