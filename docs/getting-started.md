@@ -35,8 +35,8 @@ Work through this once, top to bottom. Takes ~1.5 hours.
 - [ ] Install EF Core tools: `dotnet tool install --global dotnet-ef`
 - [ ] Start local infra: `docker compose up -d`
 - [ ] Verify:
-  - Postgres: `psql postgresql://flowpilot:flowpilot_dev_pass@localhost/flowpilot_dev -c '\l'`
-  - Seq UI: http://localhost:8081
+  - Postgres: `docker exec -it flowpilot_db psql -U flowpilot -d flowpilot_dev`
+  - Seq UI: http://localhost:5341
 
 ---
 
