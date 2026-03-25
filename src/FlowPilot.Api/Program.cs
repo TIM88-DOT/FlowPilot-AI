@@ -2,9 +2,11 @@ using System.Text;
 using System.Text.Json.Serialization;
 using FlowPilot.Api.Services;
 using FlowPilot.Application.Auth;
+using FlowPilot.Application.Appointments;
 using FlowPilot.Application.Customers;
 using FlowPilot.Domain.Enums;
 using FlowPilot.Infrastructure.Auth;
+using FlowPilot.Infrastructure.Appointments;
 using FlowPilot.Infrastructure.Customers;
 using FlowPilot.Infrastructure.Persistence;
 using FlowPilot.Shared;
@@ -59,6 +61,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<IAppointmentService, AppointmentService>();
+
+// ---------------------------------------------------------------------------
+// MediatR — in-process domain events (replaces Service Bus until Day 11-12)
+// ---------------------------------------------------------------------------
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<AppointmentStatusChangedHandler>());
 
 // ---------------------------------------------------------------------------
 // JWT Authentication
@@ -281,6 +289,101 @@ customerGroup.MapPost("/import", async (HttpRequest httpRequest, ICustomerServic
         ? Results.Problem(result.Error.Description, statusCode: 400)
         : Results.Ok(result.Value);
 }).DisableAntiforgery();
+
+// ---------------------------------------------------------------------------
+// Appointment Endpoints — /api/v1/appointments
+// ---------------------------------------------------------------------------
+RouteGroupBuilder appointmentGroup = app.MapGroup("/api/v1/appointments").RequireAuthorization("Staff");
+
+appointmentGroup.MapGet("/", async (
+    AppointmentStatus? status, Guid? staffUserId, Guid? customerId,
+    DateTime? dateFrom, DateTime? dateTo, int? page, int? pageSize,
+    IAppointmentService appointmentService, CancellationToken ct) =>
+{
+    var query = new AppointmentQuery(status, staffUserId, customerId, dateFrom, dateTo, page ?? 1, pageSize ?? 25);
+    Result<PagedResult<AppointmentDto>> result = await appointmentService.ListAsync(query, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 400)
+        : Results.Ok(result.Value);
+});
+
+appointmentGroup.MapPost("/", async (CreateAppointmentRequest request, IAppointmentService appointmentService, CancellationToken ct) =>
+{
+    Result<AppointmentDto> result = await appointmentService.CreateAsync(request, ct);
+
+    if (result.IsFailure)
+        return Results.Problem(result.Error.Description, statusCode: 400);
+
+    return Results.Created($"/api/v1/appointments/{result.Value.Id}", result.Value);
+});
+
+appointmentGroup.MapGet("/{id:guid}", async (Guid id, IAppointmentService appointmentService, CancellationToken ct) =>
+{
+    Result<AppointmentDto> result = await appointmentService.GetByIdAsync(id, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 404)
+        : Results.Ok(result.Value);
+});
+
+appointmentGroup.MapPost("/{id:guid}/confirm", async (Guid id, IAppointmentService appointmentService, CancellationToken ct) =>
+{
+    Result<AppointmentDto> result = await appointmentService.ConfirmAsync(id, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: result.Error.Code == "Appointment.NotFound" ? 404 : 400)
+        : Results.Ok(result.Value);
+});
+
+appointmentGroup.MapPost("/{id:guid}/cancel", async (Guid id, IAppointmentService appointmentService, CancellationToken ct) =>
+{
+    Result<AppointmentDto> result = await appointmentService.CancelAsync(id, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: result.Error.Code == "Appointment.NotFound" ? 404 : 400)
+        : Results.Ok(result.Value);
+});
+
+appointmentGroup.MapPost("/{id:guid}/complete", async (Guid id, IAppointmentService appointmentService, CancellationToken ct) =>
+{
+    Result<AppointmentDto> result = await appointmentService.CompleteAsync(id, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: result.Error.Code == "Appointment.NotFound" ? 404 : 400)
+        : Results.Ok(result.Value);
+});
+
+appointmentGroup.MapPost("/{id:guid}/reschedule", async (Guid id, RescheduleAppointmentRequest request, IAppointmentService appointmentService, CancellationToken ct) =>
+{
+    Result<AppointmentDto> result = await appointmentService.RescheduleAsync(id, request, ct);
+
+    if (result.IsFailure)
+    {
+        int statusCode = result.Error.Code switch
+        {
+            "Appointment.NotFound" => 404,
+            _ => 400
+        };
+        return Results.Problem(result.Error.Description, statusCode: statusCode);
+    }
+
+    return Results.Ok(result.Value);
+});
+
+// ---------------------------------------------------------------------------
+// Webhook Endpoints — /api/webhooks
+// ---------------------------------------------------------------------------
+RouteGroupBuilder webhookGroup = app.MapGroup("/api/webhooks").RequireAuthorization("Staff");
+
+webhookGroup.MapPost("/appointments/inbound", async (InboundAppointmentWebhook webhook, IAppointmentService appointmentService, CancellationToken ct) =>
+{
+    Result<AppointmentDto> result = await appointmentService.IngestFromWebhookAsync(webhook, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 400)
+        : Results.Ok(result.Value);
+});
 
 // ---------------------------------------------------------------------------
 // Health check
