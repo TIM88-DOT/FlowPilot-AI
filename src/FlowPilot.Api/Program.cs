@@ -68,9 +68,13 @@ builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IAppointmentService, AppointmentService>();
 
 // ---------------------------------------------------------------------------
-// Messaging services — ISmsProvider is pluggable (FakeSmsProvider for dev)
+// Messaging services — ISmsProvider swapped by config: "Fake" (dev) or "Twilio" (prod)
 // ---------------------------------------------------------------------------
-builder.Services.AddScoped<ISmsProvider, FakeSmsProvider>();
+string smsProvider = builder.Configuration["SmsProvider"] ?? "Fake";
+if (smsProvider.Equals("Twilio", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddScoped<ISmsProvider, TwilioSmsProvider>();
+else
+    builder.Services.AddScoped<ISmsProvider, FakeSmsProvider>();
 builder.Services.AddScoped<ITemplateRenderer, TemplateRenderer>();
 builder.Services.AddScoped<IMessagingService, MessagingService>();
 builder.Services.AddScoped<ITemplateService, TemplateService>();
