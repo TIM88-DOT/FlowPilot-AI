@@ -1,7 +1,11 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using FlowPilot.Api.Services;
 using FlowPilot.Application.Auth;
+using FlowPilot.Application.Customers;
+using FlowPilot.Domain.Enums;
 using FlowPilot.Infrastructure.Auth;
+using FlowPilot.Infrastructure.Customers;
 using FlowPilot.Infrastructure.Persistence;
 using FlowPilot.Shared;
 using FlowPilot.Shared.Interfaces;
@@ -27,6 +31,14 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .WriteTo.Seq(context.Configuration["Seq:ServerUrl"] ?? "http://localhost:5341"));
 
 // ---------------------------------------------------------------------------
+// JSON — accept enum values as strings (e.g. "Manual" instead of 0)
+// ---------------------------------------------------------------------------
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+
+// ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
@@ -46,6 +58,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // ---------------------------------------------------------------------------
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
 
 // ---------------------------------------------------------------------------
 // JWT Authentication
@@ -162,6 +175,112 @@ authGroup.MapPost("/logout", async (IAuthService authService, HttpContext httpCo
 
     return Results.Ok(new { message = "Logged out." });
 }).RequireAuthorization();
+
+// ---------------------------------------------------------------------------
+// Customer Endpoints — /api/v1/customers
+// ---------------------------------------------------------------------------
+RouteGroupBuilder customerGroup = app.MapGroup("/api/v1/customers").RequireAuthorization("Staff");
+
+customerGroup.MapGet("/", async (
+    string? search, string? tag, ConsentStatus? consentStatus, decimal? noShowScoreGte,
+    int? page, int? pageSize,
+    ICustomerService customerService, CancellationToken ct) =>
+{
+    var query = new CustomerQuery(search, tag, consentStatus, noShowScoreGte, page ?? 1, pageSize ?? 25);
+    Result<PagedResult<CustomerDto>> result = await customerService.ListAsync(query, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 400)
+        : Results.Ok(result.Value);
+});
+
+customerGroup.MapPost("/", async (CreateCustomerRequest request, ICustomerService customerService, CancellationToken ct) =>
+{
+    Result<CustomerDto> result = await customerService.CreateAsync(request, ct);
+
+    if (result.IsFailure)
+    {
+        int status = result.Error.Code switch
+        {
+            "Customer.PhoneTaken" => 409,
+            _ => 400
+        };
+        return Results.Problem(result.Error.Description, statusCode: status);
+    }
+
+    return Results.Created($"/api/v1/customers/{result.Value.Id}", result.Value);
+});
+
+customerGroup.MapGet("/{id:guid}", async (Guid id, ICustomerService customerService, CancellationToken ct) =>
+{
+    Result<CustomerDto> result = await customerService.GetByIdAsync(id, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 404)
+        : Results.Ok(result.Value);
+});
+
+customerGroup.MapPut("/{id:guid}", async (Guid id, UpdateCustomerRequest request, ICustomerService customerService, CancellationToken ct) =>
+{
+    Result<CustomerDto> result = await customerService.UpdateAsync(id, request, ct);
+
+    if (result.IsFailure)
+    {
+        int status = result.Error.Code switch
+        {
+            "Customer.NotFound" => 404,
+            "Customer.PhoneTaken" => 409,
+            _ => 400
+        };
+        return Results.Problem(result.Error.Description, statusCode: status);
+    }
+
+    return Results.Ok(result.Value);
+});
+
+customerGroup.MapDelete("/{id:guid}", async (Guid id, ICustomerService customerService, CancellationToken ct) =>
+{
+    Result result = await customerService.DeleteAsync(id, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 404)
+        : Results.Ok(new { message = "Customer anonymized and deleted." });
+});
+
+customerGroup.MapGet("/{id:guid}/history", async (Guid id, ICustomerService customerService, CancellationToken ct) =>
+{
+    Result<List<ConsentRecordDto>> result = await customerService.GetConsentHistoryAsync(id, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 404)
+        : Results.Ok(result.Value);
+});
+
+customerGroup.MapPut("/{id:guid}/consent", async (Guid id, UpdateConsentRequest request, ICustomerService customerService, CancellationToken ct) =>
+{
+    Result<CustomerDto> result = await customerService.UpdateConsentAsync(id, request, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 404)
+        : Results.Ok(result.Value);
+});
+
+customerGroup.MapPost("/import", async (HttpRequest httpRequest, ICustomerService customerService, CancellationToken ct) =>
+{
+    if (!httpRequest.HasFormContentType)
+        return Results.Problem("Expected multipart/form-data with a CSV file.", statusCode: 400);
+
+    IFormFile? file = httpRequest.Form.Files.GetFile("file");
+    if (file is null || file.Length == 0)
+        return Results.Problem("No file uploaded. Include a 'file' field with a CSV.", statusCode: 400);
+
+    await using Stream stream = file.OpenReadStream();
+    Result<CsvImportResult> result = await customerService.ImportCsvAsync(stream, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 400)
+        : Results.Ok(result.Value);
+}).DisableAntiforgery();
 
 // ---------------------------------------------------------------------------
 // Health check
