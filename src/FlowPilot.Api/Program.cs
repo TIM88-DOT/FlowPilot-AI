@@ -147,11 +147,16 @@ authGroup.MapPost("/logout", async (IAuthService authService, HttpContext httpCo
 
     await authService.LogoutAsync(userId, ct);
 
+    bool isSecure = !string.Equals(
+        Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+        "Development",
+        StringComparison.OrdinalIgnoreCase);
+
     httpContext.Response.Cookies.Delete("refreshToken", new CookieOptions
     {
         HttpOnly = true,
-        Secure = true,
-        SameSite = SameSiteMode.Strict,
+        Secure = isSecure,
+        SameSite = isSecure ? SameSiteMode.Strict : SameSiteMode.Lax,
         Path = "/api/v1/auth"
     });
 
@@ -181,14 +186,20 @@ finally
 
 /// <summary>
 /// Sets the raw refresh token as an httpOnly, Secure, SameSite=Strict cookie.
+/// Secure flag is disabled in Development to allow HTTP testing.
 /// </summary>
 static void SetRefreshTokenCookie(HttpContext httpContext, string rawRefreshToken)
 {
+    bool isSecure = !string.Equals(
+        Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+        "Development",
+        StringComparison.OrdinalIgnoreCase);
+
     httpContext.Response.Cookies.Append("refreshToken", rawRefreshToken, new CookieOptions
     {
         HttpOnly = true,
-        Secure = true,
-        SameSite = SameSiteMode.Strict,
+        Secure = isSecure,
+        SameSite = isSecure ? SameSiteMode.Strict : SameSiteMode.Lax,
         Path = "/api/v1/auth",
         Expires = DateTimeOffset.UtcNow.AddDays(7)
     });
