@@ -4,11 +4,15 @@ using FlowPilot.Api.Services;
 using FlowPilot.Application.Auth;
 using FlowPilot.Application.Appointments;
 using FlowPilot.Application.Customers;
+using FlowPilot.Application.Messaging;
+using FlowPilot.Application.Templates;
 using FlowPilot.Domain.Enums;
 using FlowPilot.Infrastructure.Auth;
 using FlowPilot.Infrastructure.Appointments;
 using FlowPilot.Infrastructure.Customers;
+using FlowPilot.Infrastructure.Messaging;
 using FlowPilot.Infrastructure.Persistence;
+using FlowPilot.Infrastructure.Templates;
 using FlowPilot.Shared;
 using FlowPilot.Shared.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -62,6 +66,14 @@ builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IAppointmentService, AppointmentService>();
+
+// ---------------------------------------------------------------------------
+// Messaging services — ISmsProvider is pluggable (FakeSmsProvider for dev)
+// ---------------------------------------------------------------------------
+builder.Services.AddScoped<ISmsProvider, FakeSmsProvider>();
+builder.Services.AddScoped<ITemplateRenderer, TemplateRenderer>();
+builder.Services.AddScoped<IMessagingService, MessagingService>();
+builder.Services.AddScoped<ITemplateService, TemplateService>();
 
 // ---------------------------------------------------------------------------
 // MediatR — in-process domain events (replaces Service Bus until Day 11-12)
@@ -383,6 +395,148 @@ webhookGroup.MapPost("/appointments/inbound", async (InboundAppointmentWebhook w
     return result.IsFailure
         ? Results.Problem(result.Error.Description, statusCode: 400)
         : Results.Ok(result.Value);
+});
+
+webhookGroup.MapPost("/sms/inbound", async (InboundSmsWebhook webhook, IMessagingService messagingService, CancellationToken ct) =>
+{
+    Result result = await messagingService.ProcessInboundAsync(webhook, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 400)
+        : Results.Ok(new { message = "Processed." });
+});
+
+webhookGroup.MapPost("/sms/status", async (DeliveryStatusWebhook webhook, IMessagingService messagingService, CancellationToken ct) =>
+{
+    Result result = await messagingService.ProcessDeliveryStatusAsync(webhook, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 400)
+        : Results.Ok(new { message = "Status updated." });
+});
+
+// ---------------------------------------------------------------------------
+// Messaging Endpoints — /api/v1/messaging
+// ---------------------------------------------------------------------------
+RouteGroupBuilder messagingGroup = app.MapGroup("/api/v1/messaging").RequireAuthorization("Staff");
+
+messagingGroup.MapPost("/send", async (SendSmsRequest request, IMessagingService messagingService, CancellationToken ct) =>
+{
+    Result<SendSmsResponse> result = await messagingService.SendTemplatedAsync(request, ct);
+
+    if (result.IsFailure)
+    {
+        int status = result.Error.Code switch
+        {
+            "Messaging.ConsentRequired" => 403,
+            "Customer.NotFound" => 404,
+            _ => 400
+        };
+        return Results.Problem(result.Error.Description, statusCode: status);
+    }
+
+    return Results.Ok(result.Value);
+});
+
+messagingGroup.MapPost("/send-raw", async (SendRawSmsRequest request, IMessagingService messagingService, CancellationToken ct) =>
+{
+    Result<SendSmsResponse> result = await messagingService.SendRawAsync(request, ct);
+
+    if (result.IsFailure)
+    {
+        int status = result.Error.Code switch
+        {
+            "Messaging.ConsentRequired" => 403,
+            "Customer.NotFound" => 404,
+            _ => 400
+        };
+        return Results.Problem(result.Error.Description, statusCode: status);
+    }
+
+    return Results.Ok(result.Value);
+});
+
+// ---------------------------------------------------------------------------
+// Template Endpoints — /api/v1/templates
+// ---------------------------------------------------------------------------
+RouteGroupBuilder templateGroup = app.MapGroup("/api/v1/templates").RequireAuthorization("Staff");
+
+templateGroup.MapGet("/", async (ITemplateService templateService, CancellationToken ct) =>
+{
+    Result<List<TemplateDto>> result = await templateService.ListAsync(ct);
+    return Results.Ok(result.Value);
+});
+
+templateGroup.MapGet("/{id:guid}", async (Guid id, ITemplateService templateService, CancellationToken ct) =>
+{
+    Result<TemplateDto> result = await templateService.GetByIdAsync(id, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 404)
+        : Results.Ok(result.Value);
+});
+
+templateGroup.MapPost("/", async (CreateTemplateRequest request, ITemplateService templateService, CancellationToken ct) =>
+{
+    Result<TemplateDto> result = await templateService.CreateAsync(request, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 400)
+        : Results.Created($"/api/v1/templates/{result.Value.Id}", result.Value);
+});
+
+templateGroup.MapPut("/{id:guid}", async (Guid id, UpdateTemplateRequest request, ITemplateService templateService, CancellationToken ct) =>
+{
+    Result<TemplateDto> result = await templateService.UpdateAsync(id, request, ct);
+
+    if (result.IsFailure)
+    {
+        int status = result.Error.Code switch
+        {
+            "Template.NotFound" => 404,
+            "Template.SystemReadOnly" => 403,
+            _ => 400
+        };
+        return Results.Problem(result.Error.Description, statusCode: status);
+    }
+
+    return Results.Ok(result.Value);
+});
+
+templateGroup.MapDelete("/{id:guid}", async (Guid id, ITemplateService templateService, CancellationToken ct) =>
+{
+    Result result = await templateService.DeleteAsync(id, ct);
+
+    if (result.IsFailure)
+    {
+        int status = result.Error.Code switch
+        {
+            "Template.NotFound" => 404,
+            "Template.SystemReadOnly" => 403,
+            _ => 400
+        };
+        return Results.Problem(result.Error.Description, statusCode: status);
+    }
+
+    return Results.Ok(new { message = "Template deleted." });
+});
+
+templateGroup.MapPut("/{id:guid}/variants", async (Guid id, UpsertLocaleVariantRequest request, ITemplateService templateService, CancellationToken ct) =>
+{
+    Result<TemplateDto> result = await templateService.UpsertLocaleVariantAsync(id, request, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 404)
+        : Results.Ok(result.Value);
+});
+
+templateGroup.MapDelete("/{id:guid}/variants/{locale}", async (Guid id, string locale, ITemplateService templateService, CancellationToken ct) =>
+{
+    Result result = await templateService.DeleteLocaleVariantAsync(id, locale, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 404)
+        : Results.Ok(new { message = "Locale variant deleted." });
 });
 
 // ---------------------------------------------------------------------------
