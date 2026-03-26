@@ -1,5 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+  <PropertyGroup>
+    <UserSecretsId>83190579-f44b-46d1-88f2-98a1855cfe6e</UserSecretsId>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\FlowPilot.Infrastructure\FlowPilot.Infrastructure.csproj" />
   </ItemGroup>

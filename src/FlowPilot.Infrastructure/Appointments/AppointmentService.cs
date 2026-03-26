@@ -73,7 +73,7 @@ public sealed class AppointmentService : IAppointmentService
             appointment.Id, appointment.CustomerId, _currentTenant.TenantId, appointment.StartsAt), cancellationToken);
 
         await _mediator.Publish(new AppointmentStatusChangedEvent(
-            appointment.Id, _currentTenant.TenantId, _currentTenant.UserId,
+            appointment.Id, appointment.CustomerId, _currentTenant.TenantId, _currentTenant.UserId,
             AppointmentStatus.Scheduled, AppointmentStatus.Scheduled), cancellationToken);
 
         return Result.Success(await ToDtoAsync(appointment, cancellationToken));
@@ -187,7 +187,7 @@ public sealed class AppointmentService : IAppointmentService
 
         // Publish events for old appointment (status changed to Rescheduled)
         await _mediator.Publish(new AppointmentStatusChangedEvent(
-            appointment.Id, _currentTenant.TenantId, _currentTenant.UserId,
+            appointment.Id, appointment.CustomerId, _currentTenant.TenantId, _currentTenant.UserId,
             oldStatus, AppointmentStatus.Rescheduled), cancellationToken);
 
         // Publish events for new appointment (created + scheduled)
@@ -195,7 +195,7 @@ public sealed class AppointmentService : IAppointmentService
             newAppointment.Id, newAppointment.CustomerId, _currentTenant.TenantId, newAppointment.StartsAt), cancellationToken);
 
         await _mediator.Publish(new AppointmentStatusChangedEvent(
-            newAppointment.Id, _currentTenant.TenantId, _currentTenant.UserId,
+            newAppointment.Id, newAppointment.CustomerId, _currentTenant.TenantId, _currentTenant.UserId,
             AppointmentStatus.Scheduled, AppointmentStatus.Scheduled), cancellationToken);
 
         // Return the NEW appointment
@@ -244,7 +244,7 @@ public sealed class AppointmentService : IAppointmentService
             appointment.Id, appointment.CustomerId, _currentTenant.TenantId, appointment.StartsAt), cancellationToken);
 
         await _mediator.Publish(new AppointmentStatusChangedEvent(
-            appointment.Id, _currentTenant.TenantId, _currentTenant.UserId,
+            appointment.Id, appointment.CustomerId, _currentTenant.TenantId, _currentTenant.UserId,
             AppointmentStatus.Scheduled, AppointmentStatus.Scheduled), cancellationToken);
 
         return Result.Success(await ToDtoAsync(appointment, cancellationToken));
@@ -275,7 +275,7 @@ public sealed class AppointmentService : IAppointmentService
         await _db.SaveChangesAsync(cancellationToken);
 
         await _mediator.Publish(new AppointmentStatusChangedEvent(
-            appointment.Id, _currentTenant.TenantId, _currentTenant.UserId,
+            appointment.Id, appointment.CustomerId, _currentTenant.TenantId, _currentTenant.UserId,
             oldStatus, newStatus), cancellationToken);
 
         return Result.Success(ToDto(appointment));

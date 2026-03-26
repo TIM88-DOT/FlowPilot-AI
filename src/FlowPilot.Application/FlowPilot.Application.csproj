@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="MediatR" Version="12.4.1" />
+    <PackageReference Include="System.Memory.Data" Version="8.0.1" />
   </ItemGroup>
 
 </Project>

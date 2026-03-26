@@ -17,6 +17,7 @@ public sealed record AppointmentCreatedEvent(
 /// </summary>
 public sealed record AppointmentStatusChangedEvent(
     Guid AppointmentId,
+    Guid CustomerId,
     Guid TenantId,
     Guid? UserId,
     AppointmentStatus OldStatus,

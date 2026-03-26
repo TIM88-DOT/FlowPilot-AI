@@ -1,12 +1,17 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using System.ClientModel;
+using Azure.AI.OpenAI;
 using FlowPilot.Api.Services;
+using FlowPilot.Application.Agents;
 using FlowPilot.Application.Auth;
 using FlowPilot.Application.Appointments;
 using FlowPilot.Application.Customers;
 using FlowPilot.Application.Messaging;
 using FlowPilot.Application.Templates;
 using FlowPilot.Domain.Enums;
+using FlowPilot.Infrastructure.Agents;
+using FlowPilot.Infrastructure.Agents.Tools;
 using FlowPilot.Infrastructure.Auth;
 using FlowPilot.Infrastructure.Appointments;
 using FlowPilot.Infrastructure.Customers;
@@ -15,6 +20,7 @@ using FlowPilot.Infrastructure.Persistence;
 using FlowPilot.Infrastructure.Templates;
 using FlowPilot.Shared;
 using FlowPilot.Shared.Interfaces;
+using OpenAI.Chat;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -80,9 +86,56 @@ builder.Services.AddScoped<IMessagingService, MessagingService>();
 builder.Services.AddScoped<ITemplateService, TemplateService>();
 
 // ---------------------------------------------------------------------------
-// MediatR — in-process domain events (replaces Service Bus until Day 11-12)
+// MediatR — in-process domain events
 // ---------------------------------------------------------------------------
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<AppointmentStatusChangedHandler>());
+
+// ---------------------------------------------------------------------------
+// AI Agents — Azure OpenAI + Tool Registry + Orchestrator
+// ---------------------------------------------------------------------------
+builder.Services.Configure<AzureOpenAISettings>(builder.Configuration.GetSection(AzureOpenAISettings.SectionName));
+
+string aoaiEndpoint = builder.Configuration["AzureOpenAI:Endpoint"] ?? "";
+string aoaiApiKey = builder.Configuration["AzureOpenAI:ApiKey"] ?? "";
+string aoaiDeployment = builder.Configuration["AzureOpenAI:DeploymentName"] ?? "gpt-4o";
+
+if (!string.IsNullOrEmpty(aoaiEndpoint) && !string.IsNullOrEmpty(aoaiApiKey))
+{
+    var openAIClient = new AzureOpenAIClient(
+        new Uri(aoaiEndpoint),
+        new ApiKeyCredential(aoaiApiKey));
+    builder.Services.AddSingleton(openAIClient.GetChatClient(aoaiDeployment));
+}
+// When Azure OpenAI is not configured (dev/test), no ChatClient is registered.
+// AgentOrchestrator handles this gracefully by checking if it was injected.
+
+// Tool registry + agent tools (scoped — tools depend on AppDbContext)
+builder.Services.AddScoped<IToolRegistry>(sp =>
+{
+    var registry = new ToolRegistry();
+    registry.Register(sp.GetRequiredService<GetCustomerHistoryTool>());
+    registry.Register(sp.GetRequiredService<GetAppointmentDetailsTool>());
+    registry.Register(sp.GetRequiredService<ScheduleSmsTool>());
+    registry.Register(sp.GetRequiredService<SendSmsTool>());
+    registry.Register(sp.GetRequiredService<ConfirmAppointmentTool>());
+    registry.Register(sp.GetRequiredService<ClassifyIntentTool>());
+    registry.Register(sp.GetRequiredService<GetReviewPlatformsTool>());
+    registry.Register(sp.GetRequiredService<CheckReviewCooldownTool>());
+    return registry;
+});
+
+builder.Services.AddScoped<GetCustomerHistoryTool>();
+builder.Services.AddScoped<GetAppointmentDetailsTool>();
+builder.Services.AddScoped<ScheduleSmsTool>();
+builder.Services.AddScoped<SendSmsTool>();
+builder.Services.AddScoped<ConfirmAppointmentTool>();
+builder.Services.AddScoped<ClassifyIntentTool>();
+builder.Services.AddScoped<GetReviewPlatformsTool>();
+builder.Services.AddScoped<CheckReviewCooldownTool>();
+
+// Orchestrator + agents
+builder.Services.AddScoped<IAgentOrchestrator, AgentOrchestrator>();
+builder.Services.AddScoped<ReplyHandlingAgent>();
 
 // ---------------------------------------------------------------------------
 // JWT Authentication
