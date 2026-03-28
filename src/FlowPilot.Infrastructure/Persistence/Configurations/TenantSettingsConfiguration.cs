@@ -15,5 +15,8 @@ public class TenantSettingsConfiguration : IEntityTypeConfiguration<TenantSettin
         builder.Property(s => s.TrustpilotUrl).HasMaxLength(500);
         builder.Property(s => s.BusinessHoursJson).HasColumnType("jsonb");
         builder.Property(s => s.DefaultSenderPhone).HasMaxLength(20);
+        builder.Property(s => s.NotificationSettingsJson).HasColumnType("jsonb");
+        builder.Property(s => s.ReviewSettingsJson).HasColumnType("jsonb");
+        builder.Property(s => s.BookingSettingsJson).HasColumnType("jsonb");
     }
 }

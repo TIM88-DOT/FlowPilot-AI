@@ -12,6 +12,8 @@ public class Tenant : BaseEntity
     public string? BusinessEmail { get; set; }
     public string? Timezone { get; set; }
     public string DefaultLanguage { get; set; } = "fr";
+    public string? Address { get; set; }
+    public string Currency { get; set; } = "DZD";
 
     public TenantSettings? Settings { get; set; }
     public Plan? Plan { get; set; }

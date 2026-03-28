@@ -21,5 +21,10 @@ public class TenantSettings : BaseEntity
     public string? DefaultSenderPhone { get; set; }
     public int ReminderLeadTimeMinutes { get; set; } = 120;
 
+    // JSON settings for configurable sub-sections
+    public string? NotificationSettingsJson { get; set; }
+    public string? ReviewSettingsJson { get; set; }
+    public string? BookingSettingsJson { get; set; }
+
     public Tenant Tenant { get; set; } = null!;
 }

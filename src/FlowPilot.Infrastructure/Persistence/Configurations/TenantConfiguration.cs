@@ -15,6 +15,8 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(t => t.BusinessEmail).HasMaxLength(200);
         builder.Property(t => t.Timezone).HasMaxLength(50);
         builder.Property(t => t.DefaultLanguage).HasMaxLength(10).HasDefaultValue("fr");
+        builder.Property(t => t.Address).HasMaxLength(500);
+        builder.Property(t => t.Currency).HasMaxLength(10).HasDefaultValue("DZD");
 
         builder.HasOne(t => t.Settings)
             .WithOne(s => s.Tenant)

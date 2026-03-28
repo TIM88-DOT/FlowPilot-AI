@@ -7,6 +7,14 @@ import {
 } from "lucide-react";
 import api from "../../lib/api";
 
+interface DashboardStats {
+  noShowRatePercent: number;
+  totalAppointmentsLast30Days: number;
+  missedAppointmentsLast30Days: number;
+  reviewsSentThisMonth: number;
+  smsSentThisMonth: number;
+}
+
 interface KPI {
   label: string;
   value: string;
@@ -34,6 +42,11 @@ export default function DashboardPage() {
       api.get("/customers", { params: { pageSize: 1 } }).then((r) => r.data),
   });
 
+  const stats = useQuery<DashboardStats>({
+    queryKey: ["dashboard-stats"],
+    queryFn: () => api.get("/stats/dashboard").then((r) => r.data),
+  });
+
   const todayCount = appointments.data?.items?.length ?? 0;
   const totalCustomers = customers.data?.totalCount ?? 0;
 
@@ -52,14 +65,14 @@ export default function DashboardPage() {
     },
     {
       label: "No-show rate",
-      value: "—",
-      sub: "Last 30 days",
+      value: stats.data ? `${stats.data.noShowRatePercent}%` : "...",
+      sub: `Last 30 days (${stats.data?.missedAppointmentsLast30Days ?? 0}/${stats.data?.totalAppointmentsLast30Days ?? 0})`,
       icon: UserX,
     },
     {
       label: "Reviews sent",
-      value: "—",
-      sub: "This month",
+      value: stats.data ? String(stats.data.reviewsSentThisMonth) : "...",
+      sub: `This month (${stats.data?.smsSentThisMonth ?? 0} total SMS)`,
       icon: Star,
     },
   ];

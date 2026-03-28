@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  DOTNET_VERSION: "8.0.x"
+  NODE_VERSION: "20"
+
+jobs:
+  backend:
+    name: Backend (build + test)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: flowpilot_test
+          POSTGRES_USER: flowpilot
+          POSTGRES_PASSWORD: flowpilot_test_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U flowpilot"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore FlowPilot.sln
+
+      - name: Build
+        run: dotnet build FlowPilot.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test FlowPilot.sln --no-build --configuration Release --logger "trx;LogFileName=test-results.trx"
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=flowpilot_test;Username=flowpilot;Password=flowpilot_test_pass"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/*.trx"
+
+  frontend:
+    name: Frontend (build + type-check)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: src/FlowPilot.Web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/FlowPilot.Web
+        run: npm ci
+
+      - name: Lint
+        working-directory: src/FlowPilot.Web
+        run: npm run lint
+
+      - name: Build (includes TypeScript check)
+        working-directory: src/FlowPilot.Web
+        run: npm run build

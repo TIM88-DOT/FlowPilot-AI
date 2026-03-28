@@ -1,7 +1,7 @@
 namespace FlowPilot.Workers;
 
 /// <summary>
-/// Placeholder — real workers (Service Bus consumers) will be added in Phase 2.
+/// Placeholder — kept for backwards compatibility. Real dispatch is handled by ScheduledMessageDispatcher.
 /// </summary>
 public class Worker : BackgroundService
 {

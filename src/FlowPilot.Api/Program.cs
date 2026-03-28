@@ -9,6 +9,8 @@ using FlowPilot.Application.Appointments;
 using FlowPilot.Application.Customers;
 using FlowPilot.Application.Messaging;
 using FlowPilot.Application.Services;
+using FlowPilot.Application.Settings;
+using FlowPilot.Application.Stats;
 using FlowPilot.Application.Templates;
 using FlowPilot.Domain.Enums;
 using FlowPilot.Infrastructure.Agents;
@@ -17,6 +19,8 @@ using FlowPilot.Infrastructure.Auth;
 using FlowPilot.Infrastructure.Appointments;
 using FlowPilot.Infrastructure.Customers;
 using FlowPilot.Infrastructure.Services;
+using FlowPilot.Infrastructure.Settings;
+using FlowPilot.Infrastructure.Stats;
 using FlowPilot.Infrastructure.Messaging;
 using FlowPilot.Infrastructure.Persistence;
 using FlowPilot.Infrastructure.Templates;
@@ -75,6 +79,8 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IAppointmentService, AppointmentService>();
 builder.Services.AddScoped<IServiceService, ServiceService>();
+builder.Services.AddScoped<ITenantSettingsService, TenantSettingsService>();
+builder.Services.AddScoped<IDashboardStatsService, DashboardStatsService>();
 
 // ---------------------------------------------------------------------------
 // Messaging services — ISmsProvider swapped by config: "Fake" (dev) or "Twilio" (prod)
@@ -661,6 +667,43 @@ templateGroup.MapDelete("/{id:guid}/variants/{locale}", async (Guid id, string l
     return result.IsFailure
         ? Results.Problem(result.Error.Description, statusCode: 404)
         : Results.Ok(new { message = "Locale variant deleted." });
+});
+
+// ---------------------------------------------------------------------------
+// Tenant Settings Endpoints — /api/v1/settings
+// ---------------------------------------------------------------------------
+RouteGroupBuilder settingsGroup = app.MapGroup("/api/v1/settings").RequireAuthorization("Staff");
+
+settingsGroup.MapGet("/", async (ITenantSettingsService settingsService, CancellationToken ct) =>
+{
+    Result<TenantSettingsDto> result = await settingsService.GetAsync(ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 404)
+        : Results.Ok(result.Value);
+});
+
+settingsGroup.MapPut("/", async (UpdateTenantSettingsRequest request, ITenantSettingsService settingsService, CancellationToken ct) =>
+{
+    Result<TenantSettingsDto> result = await settingsService.UpdateAsync(request, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 404)
+        : Results.Ok(result.Value);
+});
+
+// ---------------------------------------------------------------------------
+// Dashboard Stats Endpoints — /api/v1/stats
+// ---------------------------------------------------------------------------
+RouteGroupBuilder statsGroup = app.MapGroup("/api/v1/stats").RequireAuthorization("Staff");
+
+statsGroup.MapGet("/dashboard", async (IDashboardStatsService statsService, CancellationToken ct) =>
+{
+    Result<DashboardStatsDto> result = await statsService.GetDashboardStatsAsync(ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 400)
+        : Results.Ok(result.Value);
 });
 
 // ---------------------------------------------------------------------------

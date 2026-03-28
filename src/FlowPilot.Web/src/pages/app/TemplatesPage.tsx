@@ -338,7 +338,7 @@ const createSchema = z.object({
   description: z.string().optional(),
   category: z.string().min(1, "Required"),
   initialBody: z.string().optional(),
-  initialLocale: z.string().default("fr"),
+  initialLocale: z.string().min(1),
 });
 
 type CreateTemplateForm = z.infer<typeof createSchema>;

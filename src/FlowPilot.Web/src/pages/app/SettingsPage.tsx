@@ -1,7 +1,71 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, Trash2, GripVertical } from "lucide-react";
+import { Plus, Trash2, GripVertical } from "lucide-react";
 import api from "../../lib/api";
+
+/* ------------------------------------------------------------------ */
+/*  Types                                                              */
+/* ------------------------------------------------------------------ */
+
+interface DayHours {
+  enabled: boolean;
+  open: string;
+  close: string;
+}
+
+interface NotificationSettings {
+  reminderTimingHours: number;
+  secondReminder: boolean;
+  secondReminderTimingHours: number;
+  confirmationEnabled: boolean;
+  noShowFollowUp: boolean;
+  smsSignature: string | null;
+}
+
+interface ReviewSettings {
+  reviewDelayHours: number;
+  reviewCooldownDays: number;
+  autoSend: boolean;
+}
+
+interface BookingSettings {
+  bufferMinutes: number;
+  maxAdvanceDays: number;
+  minAdvanceHours: number;
+  allowCancel: boolean;
+  cancelBeforeHours: number;
+  allowReschedule: boolean;
+  rescheduleBeforeHours: number;
+}
+
+interface BusinessHours {
+  monday: DayHours;
+  tuesday: DayHours;
+  wednesday: DayHours;
+  thursday: DayHours;
+  friday: DayHours;
+  saturday: DayHours;
+  sunday: DayHours;
+}
+
+interface TenantSettings {
+  businessName: string;
+  businessPhone: string | null;
+  businessEmail: string | null;
+  address: string | null;
+  timezone: string | null;
+  defaultLanguage: string;
+  currency: string;
+  defaultSenderPhone: string | null;
+  reminderLeadTimeMinutes: number;
+  googlePlaceId: string | null;
+  facebookPageUrl: string | null;
+  trustpilotUrl: string | null;
+  businessHours: BusinessHours | null;
+  notifications: NotificationSettings | null;
+  reviewSettings: ReviewSettings | null;
+  bookingSettings: BookingSettings | null;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Settings page — tabbed layout                                      */
@@ -20,6 +84,11 @@ type TabId = (typeof tabs)[number]["id"];
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("business");
+
+  const { data: settings, isLoading } = useQuery<TenantSettings>({
+    queryKey: ["tenant-settings"],
+    queryFn: () => api.get("/settings").then((r) => r.data),
+  });
 
   return (
     <div>
@@ -46,23 +115,41 @@ export default function SettingsPage() {
       </div>
 
       <div className="max-w-2xl">
-        {activeTab === "business" && <BusinessSettings />}
-        {activeTab === "services" && <ServicesSettings />}
-        {activeTab === "hours" && <BusinessHoursSettings />}
-        {activeTab === "notifications" && <NotificationSettings />}
-        {activeTab === "reviews" && <ReviewSettings />}
-        {activeTab === "booking" && <BookingSettings />}
+        {isLoading ? (
+          <p className="text-[13px] text-ink-faint py-8 text-center">Loading settings...</p>
+        ) : (
+          <>
+            {activeTab === "business" && <BusinessSettings initial={settings} />}
+            {activeTab === "services" && <ServicesSettings />}
+            {activeTab === "hours" && <BusinessHoursSettings initial={settings?.businessHours ?? null} />}
+            {activeTab === "notifications" && <NotificationSettingsTab initial={settings?.notifications ?? null} />}
+            {activeTab === "reviews" && <ReviewSettingsTab initial={settings} />}
+            {activeTab === "booking" && <BookingSettingsTab initial={settings?.bookingSettings ?? null} />}
+          </>
+        )}
       </div>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
+/*  Shared hook for saving settings                                    */
+/* ------------------------------------------------------------------ */
+
+function useSettingsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      api.put("/settings", data).then((r) => r.data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tenant-settings"] }),
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /*  Business info                                                      */
 /* ------------------------------------------------------------------ */
 
-function BusinessSettings() {
-  const [saved, setSaved] = useState(false);
+function BusinessSettings({ initial }: { initial: TenantSettings | undefined }) {
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -71,10 +158,30 @@ function BusinessSettings() {
   const [defaultLanguage, setDefaultLanguage] = useState("fr");
   const [currency, setCurrency] = useState("DZD");
 
+  useEffect(() => {
+    if (initial) {
+      setBusinessName(initial.businessName ?? "");
+      setPhone(initial.businessPhone ?? "");
+      setEmail(initial.businessEmail ?? "");
+      setAddress(initial.address ?? "");
+      setTimezone(initial.timezone ?? "Africa/Algiers");
+      setDefaultLanguage(initial.defaultLanguage ?? "fr");
+      setCurrency(initial.currency ?? "DZD");
+    }
+  }, [initial]);
+
+  const mutation = useSettingsMutation();
+
   const handleSave = () => {
-    // TODO: wire to backend tenant settings endpoint
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    mutation.mutate({
+      businessName,
+      businessPhone: phone,
+      businessEmail: email,
+      address,
+      timezone,
+      defaultLanguage,
+      currency,
+    });
   };
 
   return (
@@ -123,7 +230,7 @@ function BusinessSettings() {
             </select>
           </FieldBlock>
         </div>
-        <SaveButton onSave={handleSave} saved={saved} />
+        <SaveButton onSave={handleSave} isPending={mutation.isPending} isSuccess={mutation.isSuccess} error={mutation.error} />
       </div>
     </Card>
   );
@@ -279,34 +386,52 @@ function ServicesSettings() {
 /*  Business hours                                                     */
 /* ------------------------------------------------------------------ */
 
-const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
+type DayName = (typeof daysOfWeek)[number];
 
-interface DayHours {
-  enabled: boolean;
-  open: string;
-  close: string;
-}
+const defaultHours: Record<DayName, DayHours> = {
+  Monday: { enabled: true, open: "09:00", close: "18:00" },
+  Tuesday: { enabled: true, open: "09:00", close: "18:00" },
+  Wednesday: { enabled: true, open: "09:00", close: "18:00" },
+  Thursday: { enabled: true, open: "09:00", close: "18:00" },
+  Friday: { enabled: true, open: "09:00", close: "18:00" },
+  Saturday: { enabled: true, open: "09:00", close: "13:00" },
+  Sunday: { enabled: false, open: "09:00", close: "13:00" },
+};
 
-function BusinessHoursSettings() {
-  const [hours, setHours] = useState<Record<string, DayHours>>(() => {
-    const map: Record<string, DayHours> = {};
-    daysOfWeek.forEach((day, i) => {
-      map[day] = {
-        enabled: i < 6, // Mon-Sat on, Sun off
-        open: "09:00",
-        close: i === 5 ? "13:00" : "18:00",
+function BusinessHoursSettings({ initial }: { initial: BusinessHours | null }) {
+  const [hours, setHours] = useState<Record<DayName, DayHours>>(() => {
+    if (initial) {
+      return {
+        Monday: initial.monday ?? defaultHours.Monday,
+        Tuesday: initial.tuesday ?? defaultHours.Tuesday,
+        Wednesday: initial.wednesday ?? defaultHours.Wednesday,
+        Thursday: initial.thursday ?? defaultHours.Thursday,
+        Friday: initial.friday ?? defaultHours.Friday,
+        Saturday: initial.saturday ?? defaultHours.Saturday,
+        Sunday: initial.sunday ?? defaultHours.Sunday,
       };
-    });
-    return map;
+    }
+    return { ...defaultHours };
   });
 
-  const [saved, setSaved] = useState(false);
+  const mutation = useSettingsMutation();
+
   const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    mutation.mutate({
+      businessHours: {
+        monday: hours.Monday,
+        tuesday: hours.Tuesday,
+        wednesday: hours.Wednesday,
+        thursday: hours.Thursday,
+        friday: hours.Friday,
+        saturday: hours.Saturday,
+        sunday: hours.Sunday,
+      },
+    });
   };
 
-  const updateDay = (day: string, field: keyof DayHours, value: string | boolean) => {
+  const updateDay = (day: DayName, field: keyof DayHours, value: string | boolean) => {
     setHours((prev) => ({
       ...prev,
       [day]: { ...prev[day], [field]: value },
@@ -358,7 +483,7 @@ function BusinessHoursSettings() {
             </div>
           );
         })}
-        <SaveButton onSave={handleSave} saved={saved} />
+        <SaveButton onSave={handleSave} isPending={mutation.isPending} isSuccess={mutation.isSuccess} error={mutation.error} />
       </div>
     </Card>
   );
@@ -368,18 +493,27 @@ function BusinessHoursSettings() {
 /*  Notification settings                                              */
 /* ------------------------------------------------------------------ */
 
-function NotificationSettings() {
-  const [reminderTiming, setReminderTiming] = useState("24");
-  const [secondReminder, setSecondReminder] = useState(true);
-  const [secondReminderTiming, setSecondReminderTiming] = useState("2");
-  const [confirmationEnabled, setConfirmationEnabled] = useState(true);
-  const [noShowFollowUp, setNoShowFollowUp] = useState(true);
-  const [smsSignature, setSmsSignature] = useState("");
-  const [saved, setSaved] = useState(false);
+function NotificationSettingsTab({ initial }: { initial: NotificationSettings | null }) {
+  const [reminderTiming, setReminderTiming] = useState(String(initial?.reminderTimingHours ?? 24));
+  const [secondReminder, setSecondReminder] = useState(initial?.secondReminder ?? true);
+  const [secondReminderTiming, setSecondReminderTiming] = useState(String(initial?.secondReminderTimingHours ?? 2));
+  const [confirmationEnabled, setConfirmationEnabled] = useState(initial?.confirmationEnabled ?? true);
+  const [noShowFollowUp, setNoShowFollowUp] = useState(initial?.noShowFollowUp ?? true);
+  const [smsSignature, setSmsSignature] = useState(initial?.smsSignature ?? "");
+
+  const mutation = useSettingsMutation();
 
   const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    mutation.mutate({
+      notifications: {
+        reminderTimingHours: Number(reminderTiming),
+        secondReminder,
+        secondReminderTimingHours: Number(secondReminderTiming),
+        confirmationEnabled,
+        noShowFollowUp,
+        smsSignature: smsSignature || null,
+      },
+    });
   };
 
   return (
@@ -441,7 +575,7 @@ function NotificationSettings() {
           </p>
         </FieldBlock>
 
-        <SaveButton onSave={handleSave} saved={saved} />
+        <SaveButton onSave={handleSave} isPending={mutation.isPending} isSuccess={mutation.isSuccess} error={mutation.error} />
       </div>
     </Card>
   );
@@ -451,17 +585,25 @@ function NotificationSettings() {
 /*  Review settings                                                    */
 /* ------------------------------------------------------------------ */
 
-function ReviewSettings() {
-  const [googlePlaceId, setGooglePlaceId] = useState("");
-  const [facebookUrl, setFacebookUrl] = useState("");
-  const [reviewDelay, setReviewDelay] = useState("2");
-  const [reviewCooldown, setReviewCooldown] = useState("30");
-  const [autoSend, setAutoSend] = useState(true);
-  const [saved, setSaved] = useState(false);
+function ReviewSettingsTab({ initial }: { initial: TenantSettings | undefined }) {
+  const [googlePlaceId, setGooglePlaceId] = useState(initial?.googlePlaceId ?? "");
+  const [facebookUrl, setFacebookUrl] = useState(initial?.facebookPageUrl ?? "");
+  const [reviewDelay, setReviewDelay] = useState(String(initial?.reviewSettings?.reviewDelayHours ?? 2));
+  const [reviewCooldown, setReviewCooldown] = useState(String(initial?.reviewSettings?.reviewCooldownDays ?? 30));
+  const [autoSend, setAutoSend] = useState(initial?.reviewSettings?.autoSend ?? true);
+
+  const mutation = useSettingsMutation();
 
   const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    mutation.mutate({
+      googlePlaceId,
+      facebookPageUrl: facebookUrl,
+      reviewSettings: {
+        reviewDelayHours: Number(reviewDelay),
+        reviewCooldownDays: Number(reviewCooldown),
+        autoSend,
+      },
+    });
   };
 
   return (
@@ -516,7 +658,7 @@ function ReviewSettings() {
           </FieldBlock>
         </div>
 
-        <SaveButton onSave={handleSave} saved={saved} />
+        <SaveButton onSave={handleSave} isPending={mutation.isPending} isSuccess={mutation.isSuccess} error={mutation.error} />
       </div>
     </Card>
   );
@@ -526,19 +668,29 @@ function ReviewSettings() {
 /*  Booking settings                                                   */
 /* ------------------------------------------------------------------ */
 
-function BookingSettings() {
-  const [bufferTime, setBufferTime] = useState("15");
-  const [maxAdvance, setMaxAdvance] = useState("30");
-  const [minAdvance, setMinAdvance] = useState("2");
-  const [allowCancel, setAllowCancel] = useState(true);
-  const [cancelBefore, setCancelBefore] = useState("24");
-  const [allowReschedule, setAllowReschedule] = useState(true);
-  const [rescheduleBefore, setRescheduleBefore] = useState("12");
-  const [saved, setSaved] = useState(false);
+function BookingSettingsTab({ initial }: { initial: BookingSettings | null }) {
+  const [bufferTime, setBufferTime] = useState(String(initial?.bufferMinutes ?? 15));
+  const [maxAdvance, setMaxAdvance] = useState(String(initial?.maxAdvanceDays ?? 30));
+  const [minAdvance, setMinAdvance] = useState(String(initial?.minAdvanceHours ?? 2));
+  const [allowCancel, setAllowCancel] = useState(initial?.allowCancel ?? true);
+  const [cancelBefore, setCancelBefore] = useState(String(initial?.cancelBeforeHours ?? 24));
+  const [allowReschedule, setAllowReschedule] = useState(initial?.allowReschedule ?? true);
+  const [rescheduleBefore, setRescheduleBefore] = useState(String(initial?.rescheduleBeforeHours ?? 12));
+
+  const mutation = useSettingsMutation();
 
   const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    mutation.mutate({
+      bookingSettings: {
+        bufferMinutes: Number(bufferTime),
+        maxAdvanceDays: Number(maxAdvance),
+        minAdvanceHours: Number(minAdvance),
+        allowCancel,
+        cancelBeforeHours: Number(cancelBefore),
+        allowReschedule,
+        rescheduleBeforeHours: Number(rescheduleBefore),
+      },
+    });
   };
 
   return (
@@ -613,7 +765,7 @@ function BookingSettings() {
           </FieldBlock>
         )}
 
-        <SaveButton onSave={handleSave} saved={saved} />
+        <SaveButton onSave={handleSave} isPending={mutation.isPending} isSuccess={mutation.isSuccess} error={mutation.error} />
       </div>
     </Card>
   );
@@ -692,16 +844,28 @@ function Toggle({
   );
 }
 
-function SaveButton({ onSave, saved }: { onSave: () => void; saved: boolean }) {
+function SaveButton({
+  onSave,
+  isPending,
+  isSuccess,
+  error,
+}: {
+  onSave: () => void;
+  isPending: boolean;
+  isSuccess: boolean;
+  error: unknown;
+}) {
   return (
     <div className="flex items-center gap-3 pt-3">
       <button
         onClick={onSave}
-        className="px-5 py-2.5 bg-teal hover:bg-teal-light text-white text-[13px] font-medium rounded-xl transition-colors"
+        disabled={isPending}
+        className="px-5 py-2.5 bg-teal hover:bg-teal-light text-white text-[13px] font-medium rounded-xl transition-colors disabled:opacity-50"
       >
-        Save changes
+        {isPending ? "Saving..." : "Save changes"}
       </button>
-      {saved && <span className="text-[12px] text-teal font-medium">Saved!</span>}
+      {isSuccess && <span className="text-[12px] text-teal font-medium">Saved!</span>}
+      {error !== null && <span className="text-[12px] text-red-600 font-medium">Failed to save</span>}
     </div>
   );
 }
