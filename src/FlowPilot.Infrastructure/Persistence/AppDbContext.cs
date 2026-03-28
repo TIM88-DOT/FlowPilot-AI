@@ -33,6 +33,9 @@ public class AppDbContext : DbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
 
+    // Services
+    public DbSet<Service> Services => Set<Service>();
+
     // Appointments
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

@@ -27,7 +27,7 @@ public sealed class AppointmentService : IAppointmentService
     private static readonly Dictionary<AppointmentStatus, HashSet<AppointmentStatus>> ValidTransitions = new()
     {
         [AppointmentStatus.Scheduled] = [AppointmentStatus.Confirmed, AppointmentStatus.Cancelled, AppointmentStatus.Missed, AppointmentStatus.Rescheduled],
-        [AppointmentStatus.Confirmed] = [AppointmentStatus.Completed, AppointmentStatus.Cancelled, AppointmentStatus.Missed],
+        [AppointmentStatus.Confirmed] = [AppointmentStatus.Completed, AppointmentStatus.Cancelled, AppointmentStatus.Missed, AppointmentStatus.Rescheduled],
         [AppointmentStatus.Cancelled] = [],
         [AppointmentStatus.Missed] = [],
         [AppointmentStatus.Completed] = [],

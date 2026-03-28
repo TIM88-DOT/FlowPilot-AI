@@ -8,6 +8,7 @@ using FlowPilot.Application.Auth;
 using FlowPilot.Application.Appointments;
 using FlowPilot.Application.Customers;
 using FlowPilot.Application.Messaging;
+using FlowPilot.Application.Services;
 using FlowPilot.Application.Templates;
 using FlowPilot.Domain.Enums;
 using FlowPilot.Infrastructure.Agents;
@@ -15,6 +16,7 @@ using FlowPilot.Infrastructure.Agents.Tools;
 using FlowPilot.Infrastructure.Auth;
 using FlowPilot.Infrastructure.Appointments;
 using FlowPilot.Infrastructure.Customers;
+using FlowPilot.Infrastructure.Services;
 using FlowPilot.Infrastructure.Messaging;
 using FlowPilot.Infrastructure.Persistence;
 using FlowPilot.Infrastructure.Templates;
@@ -72,6 +74,7 @@ builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IAppointmentService, AppointmentService>();
+builder.Services.AddScoped<IServiceService, ServiceService>();
 
 // ---------------------------------------------------------------------------
 // Messaging services — ISmsProvider swapped by config: "Fake" (dev) or "Twilio" (prod)
@@ -438,6 +441,70 @@ appointmentGroup.MapPost("/{id:guid}/reschedule", async (Guid id, RescheduleAppo
     }
 
     return Results.Ok(result.Value);
+});
+
+// ---------------------------------------------------------------------------
+// Service Endpoints — /api/v1/services
+// ---------------------------------------------------------------------------
+RouteGroupBuilder serviceGroup = app.MapGroup("/api/v1/services").RequireAuthorization("Staff");
+
+serviceGroup.MapGet("/", async (IServiceService serviceService, CancellationToken ct) =>
+{
+    Result<List<ServiceDto>> result = await serviceService.ListAsync(ct);
+    return Results.Ok(result.Value);
+});
+
+serviceGroup.MapGet("/{id:guid}", async (Guid id, IServiceService serviceService, CancellationToken ct) =>
+{
+    Result<ServiceDto> result = await serviceService.GetByIdAsync(id, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 404)
+        : Results.Ok(result.Value);
+});
+
+serviceGroup.MapPost("/", async (CreateServiceRequest request, IServiceService serviceService, CancellationToken ct) =>
+{
+    Result<ServiceDto> result = await serviceService.CreateAsync(request, ct);
+
+    if (result.IsFailure)
+    {
+        int status = result.Error.Code switch
+        {
+            "Service.NameTaken" => 409,
+            _ => 400
+        };
+        return Results.Problem(result.Error.Description, statusCode: status);
+    }
+
+    return Results.Created($"/api/v1/services/{result.Value.Id}", result.Value);
+});
+
+serviceGroup.MapPut("/{id:guid}", async (Guid id, UpdateServiceRequest request, IServiceService serviceService, CancellationToken ct) =>
+{
+    Result<ServiceDto> result = await serviceService.UpdateAsync(id, request, ct);
+
+    if (result.IsFailure)
+    {
+        int status = result.Error.Code switch
+        {
+            "Service.NotFound" => 404,
+            "Service.NameTaken" => 409,
+            _ => 400
+        };
+        return Results.Problem(result.Error.Description, statusCode: status);
+    }
+
+    return Results.Ok(result.Value);
+});
+
+serviceGroup.MapDelete("/{id:guid}", async (Guid id, IServiceService serviceService, CancellationToken ct) =>
+{
+    Result result = await serviceService.DeleteAsync(id, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 404)
+        : Results.Ok(new { message = "Service deleted." });
 });
 
 // ---------------------------------------------------------------------------
