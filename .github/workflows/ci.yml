@@ -21,7 +21,7 @@ jobs:
         env:
           POSTGRES_DB: flowpilot_test
           POSTGRES_USER: flowpilot
-          POSTGRES_PASSWORD: flowpilot_test_pass
+          POSTGRES_PASSWORD: flowpilot_dev_pass
         ports:
           - 5432:5432
         options: >-
@@ -47,7 +47,7 @@ jobs:
       - name: Test
         run: dotnet test FlowPilot.sln --no-build --configuration Release --logger "trx;LogFileName=test-results.trx"
         env:
-          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=flowpilot_test;Username=flowpilot;Password=flowpilot_test_pass"
+          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=flowpilot_test;Username=flowpilot;Password=flowpilot_dev_pass"
 
       - name: Upload test results
         if: always()
