@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, GripVertical } from "lucide-react";
+import { toast } from "sonner";
 import api from "../../lib/api";
 
 /* ------------------------------------------------------------------ */
@@ -141,7 +142,10 @@ function useSettingsMutation() {
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
       api.put("/settings", data).then((r) => r.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tenant-settings"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant-settings"] });
+      toast.success("Settings saved");
+    },
   });
 }
 
@@ -273,6 +277,7 @@ function ServicesSettings() {
       setNewDuration(30);
       setNewPrice("");
       setError("");
+      toast.success("Service created");
     },
     onError: () => setError("Failed to create service. Name may already exist."),
   });
@@ -280,12 +285,18 @@ function ServicesSettings() {
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: { id: string; isActive?: boolean; name?: string; durationMinutes?: number; price?: number }) =>
       api.put(`/services/${id}`, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["services"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["services"] });
+      toast.success("Service updated");
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/services/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["services"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["services"] });
+      toast.success("Service deleted");
+    },
   });
 
   const handleAdd = () => {

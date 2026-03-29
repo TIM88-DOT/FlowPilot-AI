@@ -4,6 +4,7 @@ import { Plus, X, ChevronRight, Trash2, Pencil } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { toast } from "sonner";
 import api from "../../lib/api";
 
 /* ------------------------------------------------------------------ */
@@ -179,7 +180,10 @@ function TemplateDetail({
         locale: activeLocale,
         body: bodies[activeLocale] ?? "",
       }),
-    onSuccess: onUpdated,
+    onSuccess: () => {
+      toast.success("Template variant saved");
+      onUpdated();
+    },
   });
 
   const deleteVariantMutation = useMutation({
@@ -191,13 +195,17 @@ function TemplateDetail({
         delete next[activeLocale];
         return next;
       });
+      toast.success("Variant deleted");
       onUpdated();
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/templates/${template.id}`),
-    onSuccess: onDeleted,
+    onSuccess: () => {
+      toast.success("Template deleted");
+      onDeleted();
+    },
   });
 
   const currentBody = bodies[activeLocale] ?? "";
@@ -374,6 +382,7 @@ function CreateTemplateModal({
         category: data.category,
         localeVariants,
       });
+      toast.success("Template created");
       onCreated(res.data.id);
     } catch {
       setError("Failed to create template.");
@@ -477,6 +486,7 @@ function EditTemplateModal({
         description: data.description || null,
         category: data.category || null,
       });
+      toast.success("Template updated");
       onSaved();
     } catch {
       setError("Failed to update template.");

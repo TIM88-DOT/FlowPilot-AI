@@ -4,6 +4,7 @@ import { Plus, X, ChevronRight, Calendar, Clock, RefreshCw } from "lucide-react"
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { toast } from "sonner";
 import api from "../../lib/api";
 import type { ServiceDto } from "./SettingsPage";
 
@@ -196,9 +197,10 @@ function AppointmentDetailPanel({
 
   const actionMutation = useMutation({
     mutationFn: (action: string) => api.post(`/appointments/${appointmentId}/${action}`),
-    onSuccess: () => {
+    onSuccess: (_data, action) => {
       queryClient.invalidateQueries({ queryKey: ["appointment", appointmentId] });
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      toast.success(`Appointment ${action}ed successfully`);
     },
   });
 
@@ -379,6 +381,7 @@ function RescheduleModal({
         new Date(data.startsAt).getTime() + data.durationMinutes * 60000
       ).toISOString();
       await api.post(`/appointments/${appointment.id}/reschedule`, { startsAt, endsAt });
+      toast.success("Appointment rescheduled");
       onRescheduled();
     } catch {
       setError("Failed to reschedule.");
@@ -464,6 +467,7 @@ function CreateAppointmentModal({
         serviceName: data.serviceName || null,
         notes: data.notes || null,
       });
+      toast.success("Appointment created");
       onCreated();
     } catch {
       setError("Failed to create appointment.");

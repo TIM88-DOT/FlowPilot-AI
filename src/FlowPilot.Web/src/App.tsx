@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "sonner";
 import { AuthProvider } from "./contexts/AuthContext";
+import ErrorBoundary from "./components/app/ErrorBoundary";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -27,24 +29,34 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            {/* Public */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+          <ErrorBoundary>
+            <Routes>
+              {/* Public */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
 
-            {/* Protected app */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<AppLayout />}>
-                <Route path="/app" element={<DashboardPage />} />
-                <Route path="/app/customers" element={<CustomersPage />} />
-                <Route path="/app/appointments" element={<AppointmentsPage />} />
-                <Route path="/app/templates" element={<TemplatesPage />} />
-                <Route path="/app/settings" element={<SettingsPage />} />
+              {/* Protected app */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/app" element={<DashboardPage />} />
+                  <Route path="/app/customers" element={<CustomersPage />} />
+                  <Route path="/app/appointments" element={<AppointmentsPage />} />
+                  <Route path="/app/templates" element={<TemplatesPage />} />
+                  <Route path="/app/settings" element={<SettingsPage />} />
+                </Route>
               </Route>
-            </Route>
-          </Routes>
+            </Routes>
+          </ErrorBoundary>
         </BrowserRouter>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            className: "!bg-warm-white !border-border !text-ink !text-[13px] !rounded-xl !shadow-md",
+            duration: 4000,
+          }}
+          richColors
+        />
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -14,6 +14,7 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { toast } from "sonner";
 import api from "../../lib/api";
 
 /* ------------------------------------------------------------------ */
@@ -303,6 +304,7 @@ function CustomerDetailPanel({
     mutationFn: () => api.delete(`/customers/${customerId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast.success("Customer deleted");
       onClose();
     },
   });
@@ -461,6 +463,7 @@ function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCr
         preferredLanguage: data.preferredLanguage,
         tags: data.tags || null,
       });
+      toast.success("Customer created");
       onCreated();
     } catch {
       setError("Failed to create customer. Check the phone format (E.164).");
@@ -555,6 +558,7 @@ function EditCustomerModal({
         preferredLanguage: data.preferredLanguage || null,
         tags: data.tags || null,
       });
+      toast.success("Customer updated");
       onSaved();
     } catch {
       setError("Failed to update customer.");
@@ -661,6 +665,7 @@ function ImportCsvModal({ onClose, onImported }: { onClose: () => void; onImport
         headers: { "Content-Type": "multipart/form-data" },
       });
       setResult(data);
+      toast.success(`Imported ${data.imported} customers`);
     } catch {
       setError("Failed to import CSV.");
     } finally {
