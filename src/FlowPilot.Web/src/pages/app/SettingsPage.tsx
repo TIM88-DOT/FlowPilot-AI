@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
@@ -154,25 +154,13 @@ function useSettingsMutation() {
 /* ------------------------------------------------------------------ */
 
 function BusinessSettings({ initial }: { initial: TenantSettings | undefined }) {
-  const [businessName, setBusinessName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("");
-  const [timezone, setTimezone] = useState("Africa/Algiers");
-  const [defaultLanguage, setDefaultLanguage] = useState("fr");
-  const [currency, setCurrency] = useState("DZD");
-
-  useEffect(() => {
-    if (initial) {
-      setBusinessName(initial.businessName ?? "");
-      setPhone(initial.businessPhone ?? "");
-      setEmail(initial.businessEmail ?? "");
-      setAddress(initial.address ?? "");
-      setTimezone(initial.timezone ?? "Africa/Algiers");
-      setDefaultLanguage(initial.defaultLanguage ?? "fr");
-      setCurrency(initial.currency ?? "DZD");
-    }
-  }, [initial]);
+  const [businessName, setBusinessName] = useState(initial?.businessName ?? "");
+  const [phone, setPhone] = useState(initial?.businessPhone ?? "");
+  const [email, setEmail] = useState(initial?.businessEmail ?? "");
+  const [address, setAddress] = useState(initial?.address ?? "");
+  const [timezone, setTimezone] = useState(initial?.timezone ?? "Africa/Algiers");
+  const [defaultLanguage, setDefaultLanguage] = useState(initial?.defaultLanguage ?? "fr");
+  const [currency, setCurrency] = useState(initial?.currency ?? "DZD");
 
   const mutation = useSettingsMutation();
 
