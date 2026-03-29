@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.ClientModel;
 using Azure.AI.OpenAI;
+using FlowPilot.Api.Hubs;
 using FlowPilot.Api.Services;
 using FlowPilot.Application.Agents;
 using FlowPilot.Application.Auth;
@@ -95,9 +96,18 @@ builder.Services.AddScoped<IMessagingService, MessagingService>();
 builder.Services.AddScoped<ITemplateService, TemplateService>();
 
 // ---------------------------------------------------------------------------
-// MediatR — in-process domain events
+// MediatR — in-process domain events (scan both Infrastructure and Api assemblies)
 // ---------------------------------------------------------------------------
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<AppointmentStatusChangedHandler>());
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssemblyContaining<AppointmentStatusChangedHandler>();
+    cfg.RegisterServicesFromAssemblyContaining<Program>();
+});
+
+// ---------------------------------------------------------------------------
+// SignalR — real-time appointment updates
+// ---------------------------------------------------------------------------
+builder.Services.AddSignalR();
 
 // ---------------------------------------------------------------------------
 // AI Agents — Azure OpenAI + Tool Registry + Orchestrator
@@ -172,6 +182,21 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
         ClockSkew = TimeSpan.Zero
     };
+
+    // SignalR sends JWT via query string for WebSocket connections
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            string? token = context.Request.Query["access_token"];
+            if (!string.IsNullOrEmpty(token)
+                && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+            {
+                context.Token = token;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 // ---------------------------------------------------------------------------
@@ -193,6 +218,7 @@ app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapHub<AppointmentHub>("/hubs/appointments");
 
 // ---------------------------------------------------------------------------
 // Auth Endpoints — /api/v1/auth
