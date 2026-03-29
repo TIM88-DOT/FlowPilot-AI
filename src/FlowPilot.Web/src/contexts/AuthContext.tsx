@@ -1,6 +1,4 @@
 import {
-  createContext,
-  useContext,
   useState,
   useEffect,
   useCallback,
@@ -8,33 +6,7 @@ import {
 } from "react";
 import axios from "axios";
 import { setAccessToken } from "../lib/api";
-
-interface User {
-  id: string;
-  tenantId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  businessName: string;
-}
-
-interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (params: {
-    email: string;
-    password: string;
-    firstName: string;
-    lastName: string;
-    businessName: string;
-  }) => Promise<void>;
-  logout: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthState | null>(null);
+import { AuthContext, type User } from "../hooks/useAuth";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -101,11 +73,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
 }
