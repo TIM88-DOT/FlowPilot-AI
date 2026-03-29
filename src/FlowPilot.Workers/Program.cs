@@ -1,4 +1,5 @@
 using FlowPilot.Application.Messaging;
+using FlowPilot.Infrastructure.Appointments;
 using FlowPilot.Infrastructure.Messaging;
 using FlowPilot.Infrastructure.Persistence;
 using FlowPilot.Shared;
@@ -36,8 +37,13 @@ try
     else
         builder.Services.AddScoped<ISmsProvider, FakeSmsProvider>();
 
+    // MediatR — handlers live in Infrastructure assembly
+    builder.Services.AddMediatR(cfg =>
+        cfg.RegisterServicesFromAssemblyContaining<AppointmentStatusChangedHandler>());
+
     // Hosted services
     builder.Services.AddHostedService<ScheduledMessageDispatcher>();
+    builder.Services.AddHostedService<AppointmentAutoCompletionWorker>();
 
     var host = builder.Build();
     host.Run();
