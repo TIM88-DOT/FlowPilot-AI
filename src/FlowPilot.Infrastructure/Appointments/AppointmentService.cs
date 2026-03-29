@@ -101,6 +101,15 @@ public sealed class AppointmentService : IAppointmentService
         if (query.DateTo.HasValue)
             q = q.Where(a => a.StartsAt <= query.DateTo.Value);
 
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            string term = query.Search.Trim().ToLower();
+            q = q.Where(a =>
+                a.Customer.FirstName.ToLower().Contains(term)
+                || (a.Customer.LastName != null && a.Customer.LastName.ToLower().Contains(term))
+                || (a.ServiceName != null && a.ServiceName.ToLower().Contains(term)));
+        }
+
         int totalCount = await q.CountAsync(cancellationToken);
 
         List<AppointmentDto> items = await q

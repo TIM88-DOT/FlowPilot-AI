@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
@@ -16,6 +17,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import api from "../../lib/api";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -57,17 +59,42 @@ interface PagedResult {
 
 export default function CustomersPage() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchInput, setSearchInput] = useState(searchParams.get("search") ?? "");
+  const debouncedSearch = useDebouncedValue(searchInput);
+  const page = Number(searchParams.get("page") ?? "1");
   const [showCreate, setShowCreate] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const pageSize = 20;
 
+  const setPage = (p: number | ((prev: number) => number)) => {
+    const next = typeof p === "function" ? p(page) : p;
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (next <= 1) params.delete("page");
+      else params.set("page", String(next));
+      return params;
+    });
+  };
+
+  // Sync debounced search to URL
+  const search = debouncedSearch;
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (value) params.set("search", value);
+      else params.delete("search");
+      params.delete("page");
+      return params;
+    });
+  };
+
   const { data, isLoading } = useQuery<PagedResult>({
     queryKey: ["customers", search, page],
     queryFn: () =>
-      api.get("/customers", { params: { search, page, pageSize } }).then((r) => r.data),
+      api.get("/customers", { params: { search: search || undefined, page, pageSize } }).then((r) => r.data),
   });
 
   const totalPages = data?.totalPages ?? 0;
@@ -104,11 +131,8 @@ export default function CustomersPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
         <input
           type="text"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
+          value={searchInput}
+          onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Search by name, phone, or email..."
           className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-warm-white text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors"
         />

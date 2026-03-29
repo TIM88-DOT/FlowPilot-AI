@@ -29,6 +29,7 @@ public sealed record AppointmentQuery(
     Guid? CustomerId = null,
     DateTime? DateFrom = null,
     DateTime? DateTo = null,
+    string? Search = null,
     int Page = 1,
     int PageSize = 25);
 

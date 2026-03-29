@@ -1,12 +1,14 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, ChevronRight, Calendar, Clock, RefreshCw } from "lucide-react";
+import { Plus, X, ChevronRight, ChevronLeft, Calendar, Clock, RefreshCw, Search } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import api from "../../lib/api";
 import type { ServiceDto } from "./SettingsPage";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -45,21 +47,60 @@ type CreateForm = z.infer<typeof createSchema>;
 
 export default function AppointmentsPage() {
   const queryClient = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchInput, setSearchInput] = useState(searchParams.get("search") ?? "");
+  const debouncedSearch = useDebouncedValue(searchInput);
+  const statusFilter = searchParams.get("status") ?? "All";
+  const page = Number(searchParams.get("page") ?? "1");
   const [showCreate, setShowCreate] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const pageSize = 20;
+
+  const setStatusFilter = (status: string) => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (status === "All") params.delete("status");
+      else params.set("status", status);
+      params.delete("page");
+      return params;
+    });
+  };
+
+  const setPage = (p: number | ((prev: number) => number)) => {
+    const next = typeof p === "function" ? p(page) : p;
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (next <= 1) params.delete("page");
+      else params.set("page", String(next));
+      return params;
+    });
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (value) params.set("search", value);
+      else params.delete("search");
+      params.delete("page");
+      return params;
+    });
+  };
+
+  const search = debouncedSearch;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["appointments", statusFilter],
-    queryFn: () =>
-      api
-        .get("/appointments", {
-          params: statusFilter !== "All" ? { status: statusFilter } : {},
-        })
-        .then((r) => r.data),
+    queryKey: ["appointments", statusFilter, search, page],
+    queryFn: () => {
+      const params: Record<string, string | number> = { page, pageSize };
+      if (statusFilter !== "All") params.status = statusFilter;
+      if (search) params.search = search;
+      return api.get("/appointments", { params }).then((r) => r.data);
+    },
   });
 
   const appointments: Appointment[] = data?.items ?? [];
+  const totalPages: number = data?.totalPages ?? 0;
 
   return (
     <div>
@@ -67,7 +108,7 @@ export default function AppointmentsPage() {
         <div>
           <h1 className="text-[20px] font-bold text-ink">Appointments</h1>
           <p className="text-[13px] text-ink-muted mt-1">
-            {data ? `${data.totalCount ?? appointments.length} total` : "Loading..."}
+            {data ? `${data.totalCount} total` : "Loading..."}
           </p>
         </div>
         <button
@@ -77,6 +118,18 @@ export default function AppointmentsPage() {
           <Plus className="w-4 h-4" />
           New appointment
         </button>
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          placeholder="Search by customer name or service..."
+          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-warm-white text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors"
+        />
       </div>
 
       {/* Status filter tabs */}
@@ -114,6 +167,31 @@ export default function AppointmentsPage() {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 mt-2">
+          <span className="text-[12px] text-ink-faint">
+            Page {page} of {totalPages}
+          </span>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="p-1.5 rounded-lg hover:bg-cream-dark disabled:opacity-30 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4 text-ink-muted" />
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="p-1.5 rounded-lg hover:bg-cream-dark disabled:opacity-30 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4 text-ink-muted" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       {showCreate && (

@@ -401,10 +401,10 @@ RouteGroupBuilder appointmentGroup = app.MapGroup("/api/v1/appointments").Requir
 
 appointmentGroup.MapGet("/", async (
     AppointmentStatus? status, Guid? staffUserId, Guid? customerId,
-    DateTime? dateFrom, DateTime? dateTo, int? page, int? pageSize,
+    DateTime? dateFrom, DateTime? dateTo, string? search, int? page, int? pageSize,
     IAppointmentService appointmentService, CancellationToken ct) =>
 {
-    var query = new AppointmentQuery(status, staffUserId, customerId, dateFrom, dateTo, page ?? 1, pageSize ?? 25);
+    var query = new AppointmentQuery(status, staffUserId, customerId, dateFrom, dateTo, search, page ?? 1, pageSize ?? 25);
     Result<PagedResult<AppointmentDto>> result = await appointmentService.ListAsync(query, ct);
 
     return result.IsFailure
