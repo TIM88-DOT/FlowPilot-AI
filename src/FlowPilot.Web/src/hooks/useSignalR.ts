@@ -2,7 +2,6 @@ import { useEffect, useRef, useCallback } from "react";
 import {
   HubConnectionBuilder,
   HubConnection,
-  HubConnectionState,
   LogLevel,
 } from "@microsoft/signalr";
 import { getAccessToken } from "../lib/api";
@@ -18,6 +17,8 @@ export function useSignalR(hubUrl: string) {
   const handlersRef = useRef<Map<string, Set<EventHandler>>>(new Map());
 
   useEffect(() => {
+    let stopped = false;
+
     const connection = new HubConnectionBuilder()
       .withUrl(hubUrl, {
         accessTokenFactory: () => getAccessToken() ?? "",
@@ -35,11 +36,19 @@ export function useSignalR(hubUrl: string) {
       }
     }
 
-    connection.start().catch((err) => {
-      console.warn("SignalR connection failed:", err);
+    connection.start().catch(() => {
+      // Silenced — React Strict Mode double-mount aborts the first connection.
+      // The second mount will connect successfully.
+    });
+
+    connection.onclose((err) => {
+      if (!stopped && err) {
+        console.warn("SignalR connection closed unexpectedly:", err);
+      }
     });
 
     return () => {
+      stopped = true;
       connection.stop();
       connectionRef.current = null;
     };
@@ -51,10 +60,8 @@ export function useSignalR(hubUrl: string) {
     }
     handlersRef.current.get(event)!.add(handler);
 
-    const conn = connectionRef.current;
-    if (conn && conn.state === HubConnectionState.Connected) {
-      conn.on(event, handler);
-    }
+    // Register immediately — SignalR supports .on() before connection is started
+    connectionRef.current?.on(event, handler);
 
     return () => {
       handlersRef.current.get(event)?.delete(handler);

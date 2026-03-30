@@ -1,3 +1,4 @@
+using FlowPilot.Application.Agents;
 using FlowPilot.Application.Messaging;
 using FlowPilot.Infrastructure.Appointments;
 using FlowPilot.Infrastructure.Messaging;
@@ -36,6 +37,9 @@ try
         builder.Services.AddScoped<ISmsProvider, TwilioSmsProvider>();
     else
         builder.Services.AddScoped<ISmsProvider, FakeSmsProvider>();
+
+    // No-op agent orchestrator — AI agents require Azure OpenAI (API host only)
+    builder.Services.AddScoped<IAgentOrchestrator, NoOpAgentOrchestrator>();
 
     // MediatR — handlers live in Infrastructure assembly
     builder.Services.AddMediatR(cfg =>

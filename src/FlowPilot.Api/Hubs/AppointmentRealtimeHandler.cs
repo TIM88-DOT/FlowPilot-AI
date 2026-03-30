@@ -12,14 +12,20 @@ public sealed class AppointmentRealtimeHandler :
     INotificationHandler<AppointmentCreatedEvent>
 {
     private readonly IHubContext<AppointmentHub> _hub;
+    private readonly ILogger<AppointmentRealtimeHandler> _logger;
 
-    public AppointmentRealtimeHandler(IHubContext<AppointmentHub> hub)
+    public AppointmentRealtimeHandler(IHubContext<AppointmentHub> hub, ILogger<AppointmentRealtimeHandler> logger)
     {
         _hub = hub;
+        _logger = logger;
     }
 
     public async Task Handle(AppointmentStatusChangedEvent notification, CancellationToken cancellationToken)
     {
+        _logger.LogInformation(
+            "Pushing AppointmentStatusChanged to tenant-{TenantId}: {AppointmentId} {OldStatus} -> {NewStatus}",
+            notification.TenantId, notification.AppointmentId, notification.OldStatus, notification.NewStatus);
+
         await _hub.Clients.Group($"tenant-{notification.TenantId}").SendAsync(
             "AppointmentStatusChanged",
             new
@@ -34,6 +40,10 @@ public sealed class AppointmentRealtimeHandler :
 
     public async Task Handle(AppointmentCreatedEvent notification, CancellationToken cancellationToken)
     {
+        _logger.LogInformation(
+            "Pushing AppointmentCreated to tenant-{TenantId}: {AppointmentId}",
+            notification.TenantId, notification.AppointmentId);
+
         await _hub.Clients.Group($"tenant-{notification.TenantId}").SendAsync(
             "AppointmentCreated",
             new
