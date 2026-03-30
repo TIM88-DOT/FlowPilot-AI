@@ -1,18 +1,20 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { AuthProvider } from "./contexts/AuthContext";
 import ErrorBoundary from "./components/app/ErrorBoundary";
-import LandingPage from "./pages/LandingPage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
 import ProtectedRoute from "./components/app/ProtectedRoute";
 import AppLayout from "./components/app/AppLayout";
-import DashboardPage from "./pages/app/DashboardPage";
-import CustomersPage from "./pages/app/CustomersPage";
-import AppointmentsPage from "./pages/app/AppointmentsPage";
-import TemplatesPage from "./pages/app/TemplatesPage";
-import SettingsPage from "./pages/app/SettingsPage";
+
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const DashboardPage = lazy(() => import("./pages/app/DashboardPage"));
+const CustomersPage = lazy(() => import("./pages/app/CustomersPage"));
+const AppointmentsPage = lazy(() => import("./pages/app/AppointmentsPage"));
+const TemplatesPage = lazy(() => import("./pages/app/TemplatesPage"));
+const SettingsPage = lazy(() => import("./pages/app/SettingsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,6 +32,7 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <ErrorBoundary>
+            <Suspense fallback={<div className="flex h-screen items-center justify-center text-muted">Loading…</div>}>
             <Routes>
               {/* Public */}
               <Route path="/" element={<LandingPage />} />
@@ -47,6 +50,7 @@ function App() {
                 </Route>
               </Route>
             </Routes>
+            </Suspense>
           </ErrorBoundary>
         </BrowserRouter>
         <Toaster
