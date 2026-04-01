@@ -15,6 +15,7 @@ using FlowPilot.Application.PublicBooking;
 using FlowPilot.Application.Settings;
 using FlowPilot.Application.Stats;
 using FlowPilot.Application.Templates;
+using FlowPilot.Api.Filters;
 using FlowPilot.Domain.Entities;
 using FlowPilot.Domain.Enums;
 using FlowPilot.Infrastructure.Agents;
@@ -581,7 +582,9 @@ webhookGroup.MapPost("/sms/status", async (DeliveryStatusWebhook webhook, IMessa
 // ---------------------------------------------------------------------------
 // Twilio Webhooks — /api/webhooks/twilio (unauthenticated, tenant resolved from To phone)
 // ---------------------------------------------------------------------------
-RouteGroupBuilder twilioGroup = app.MapGroup("/api/webhooks/twilio").AllowAnonymous();
+RouteGroupBuilder twilioGroup = app.MapGroup("/api/webhooks/twilio")
+    .AllowAnonymous()
+    .AddEndpointFilter<TwilioSignatureFilter>();
 
 twilioGroup.MapPost("/sms/inbound", async (HttpRequest request, AppDbContext db, IMessagingService messagingService, CancellationToken ct) =>
 {
