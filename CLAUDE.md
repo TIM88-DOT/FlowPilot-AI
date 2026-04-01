@@ -64,6 +64,7 @@ Never call `.IgnoreQueryFilters()` without a code comment explaining why.
 
 ### Multi-Tenancy — Non-negotiable rules
 - TenantId ALWAYS comes from `ICurrentTenant` (resolved from JWT claims) — never from request body
+- **Public endpoints exception:** `PublicTenantMiddleware` resolves TenantId from URL slug → stores in `HttpContext.Items["PublicTenantId"]` → `HttpCurrentTenant` falls back to it when no JWT. This lets all existing services work for unauthenticated booking endpoints.
 - Every Service Bus message carries TenantId — workers validate it before processing
 - Integration tests MUST verify cross-tenant isolation on every CI run
 
@@ -134,9 +135,17 @@ ArchUnitNET tests enforce this in CI.
 - `IAgentTool` — Name, Description, InputSchema (JSON), ExecuteAsync
 - `IToolRegistry` — Register, Get, ExecuteTool (generates LLM function-calling schemas)
 - `IEventPublisher` — Publish<T>, PublishScheduled<T>(scheduledAt)
-- `ICurrentTenant` — TenantId, UserId, UserRole (from JWT)
+- `ICurrentTenant` — TenantId, UserId, UserRole (from JWT, or `HttpContext.Items` fallback for public endpoints)
+- `IPublicBookingService` — GetBusinessInfoAsync, GetAvailableSlotsAsync, BookAsync (public unauthenticated booking)
 - `IFeatureGate` — IsEnabled(feature) checks Plan.FeatureFlags
 - `IAppointmentSyncService` — IngestFromWebhook (idempotent), IngestFromCsv
+
+## Public Booking Flow
+- `Tenant.Slug` — unique, URL-safe, auto-generated from BusinessName on registration
+- Public API: `/api/v1/public/book/{slug}` — no auth required, tenant resolved by `PublicTenantMiddleware`
+- Booking creates customer (find-or-create by phone, `ConsentSource.Booking`) + appointment → triggers `AppointmentCreatedEvent` → `ReminderOptimizationAgent` auto-schedules SMS
+- Slot availability algorithm: business hours − existing appointments − buffer − advance booking rules
+- Frontend: `/book/:slug` — 4-step flow (service → date/time → info → confirm), code-split, mobile-first
 
 ## Idempotency Keys (memorize these)
 - Inbound SMS: `InboundMessage.ProviderSmsSid` (Twilio SmsSid)
@@ -147,8 +156,7 @@ ArchUnitNET tests enforce this in CI.
 ## What NOT to Do
 - Do not add Hangfire or cron jobs — scheduler = Azure Service Bus deferred messages
 - Do not implement MCP server yet — build IAgentTool + ToolRegistry first (Phase 3)
-- Do not add WebSockets yet — 5s polling is MVP; WebSocket is Phase 2
-- Do not wire Stripe — Plan schema is ready, payment is Phase 2
+- Do not wire Stripe — Plan schema is ready, payment is deliberately last
 - Do not put business rules inside prompts — C# enforces all hard gates
 - Do not use `var` where the type is non-obvious
 - Do not use `console.log` in React production code — use structured logging

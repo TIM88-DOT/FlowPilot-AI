@@ -43,7 +43,7 @@ public sealed class ScheduleSmsTool : IAgentTool
 
         Guid customerId = Guid.Parse(root.GetProperty("customerId").GetString()!);
         Guid appointmentId = Guid.Parse(root.GetProperty("appointmentId").GetString()!);
-        string body = root.GetProperty("body").GetString()!;
+        string body = root.GetProperty("body").GetString()!.Replace("\0", string.Empty);
         DateTime sendAt = DateTime.Parse(root.GetProperty("sendAt").GetString()!).ToUniversalTime();
         string? locale = root.TryGetProperty("locale", out JsonElement localeEl)
             ? localeEl.GetString()

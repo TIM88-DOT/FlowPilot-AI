@@ -6,5 +6,6 @@ public enum ConsentSource
     Import,
     SmsOptIn,
     SmsOptOut,
-    Api
+    Api,
+    Booking
 }

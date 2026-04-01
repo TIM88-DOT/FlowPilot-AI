@@ -11,6 +11,8 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.ToTable("tenants");
 
         builder.Property(t => t.BusinessName).HasMaxLength(200).IsRequired();
+        builder.Property(t => t.Slug).HasMaxLength(100).IsRequired();
+        builder.HasIndex(t => t.Slug).IsUnique();
         builder.Property(t => t.BusinessPhone).HasMaxLength(20);
         builder.Property(t => t.BusinessEmail).HasMaxLength(200);
         builder.Property(t => t.Timezone).HasMaxLength(50);

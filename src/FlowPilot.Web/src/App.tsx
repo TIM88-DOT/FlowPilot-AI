@@ -15,6 +15,7 @@ const CustomersPage = lazy(() => import("./pages/app/CustomersPage"));
 const AppointmentsPage = lazy(() => import("./pages/app/AppointmentsPage"));
 const TemplatesPage = lazy(() => import("./pages/app/TemplatesPage"));
 const SettingsPage = lazy(() => import("./pages/app/SettingsPage"));
+const BookingPage = lazy(() => import("./pages/BookingPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +39,7 @@ function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/book/:slug" element={<BookingPage />} />
 
               {/* Protected app */}
               <Route element={<ProtectedRoute />}>

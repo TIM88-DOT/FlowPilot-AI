@@ -18,7 +18,9 @@ public class HttpCurrentTenant : ICurrentTenant
     public Guid TenantId =>
         Guid.TryParse(_httpContextAccessor.HttpContext?.User?.FindFirst("tenant_id")?.Value, out Guid tenantId)
             ? tenantId
-            : Guid.Empty;
+            : _httpContextAccessor.HttpContext?.Items["PublicTenantId"] is Guid publicTenantId
+                ? publicTenantId
+                : Guid.Empty;
 
     public Guid UserId =>
         Guid.TryParse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value, out Guid userId)

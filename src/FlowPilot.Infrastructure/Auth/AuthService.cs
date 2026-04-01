@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using FlowPilot.Application.Auth;
 using FlowPilot.Domain.Entities;
 using FlowPilot.Domain.Enums;
@@ -34,11 +35,14 @@ public sealed class AuthService : IAuthService
 
         // Create tenant
         var tenantId = Guid.NewGuid();
+        string slug = await GenerateUniqueSlugAsync(request.BusinessName, cancellationToken);
+
         var tenant = new Tenant
         {
             Id = tenantId,
             TenantId = tenantId, // Self-referencing: tenant owns itself
             BusinessName = request.BusinessName,
+            Slug = slug,
             BusinessPhone = request.BusinessPhone,
             Timezone = request.Timezone ?? "Africa/Casablanca",
             DefaultLanguage = request.DefaultLanguage
@@ -56,13 +60,25 @@ public sealed class AuthService : IAuthService
             FeatureFlags = """{"reviewRecovery": false, "campaigns": false, "multiStaff": false}"""
         };
 
-        // Create tenant settings
+        // Create tenant settings with sensible defaults so public booking works out of the box
         var settings = new TenantSettings
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             OwnerTenantId = tenantId,
-            ReminderLeadTimeMinutes = 120
+            ReminderLeadTimeMinutes = 120,
+            BusinessHoursJson = """
+                {"monday":{"enabled":true,"open":"09:00","close":"18:00"},"tuesday":{"enabled":true,"open":"09:00","close":"18:00"},"wednesday":{"enabled":true,"open":"09:00","close":"18:00"},"thursday":{"enabled":true,"open":"09:00","close":"18:00"},"friday":{"enabled":true,"open":"09:00","close":"18:00"},"saturday":{"enabled":true,"open":"09:00","close":"13:00"},"sunday":{"enabled":false,"open":"09:00","close":"18:00"}}
+                """.Trim(),
+            BookingSettingsJson = """
+                {"bufferMinutes":10,"maxAdvanceDays":60,"minAdvanceHours":2,"allowCancel":true,"cancelBeforeHours":24,"allowReschedule":true,"rescheduleBeforeHours":24}
+                """.Trim(),
+            NotificationSettingsJson = """
+                {"reminderTimingHours":24,"secondReminder":true,"secondReminderTimingHours":2,"confirmationEnabled":true,"noShowFollowUp":true,"smsSignature":null}
+                """.Trim(),
+            ReviewSettingsJson = """
+                {"reviewDelayHours":2,"reviewCooldownDays":30,"autoSend":true}
+                """.Trim()
         };
 
         // Create owner user
@@ -307,6 +323,25 @@ public sealed class AuthService : IAuthService
         templates.Add(cancellation);
 
         return templates;
+    }
+
+    /// <summary>
+    /// Generates a URL-safe slug from the business name, ensuring global uniqueness.
+    /// </summary>
+    private async Task<string> GenerateUniqueSlugAsync(string businessName, CancellationToken ct)
+    {
+        string baseSlug = Regex.Replace(businessName.Trim().ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
+        if (string.IsNullOrEmpty(baseSlug)) baseSlug = "business";
+
+        string slug = baseSlug;
+        int suffix = 1;
+        while (await _db.Tenants
+            .IgnoreQueryFilters() // Slug uniqueness must be checked globally across all tenants
+            .AnyAsync(t => t.Slug == slug && !t.IsDeleted, ct))
+        {
+            slug = $"{baseSlug}-{suffix++}";
+        }
+        return slug;
     }
 
     private static UserInfo ToUserInfo(User user, string businessName) =>

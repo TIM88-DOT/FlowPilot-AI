@@ -133,18 +133,18 @@ public sealed class AgentOrchestrator : IAgentOrchestrator
                     toolStopwatch.Stop();
                     toolCallCount++;
 
-                    // Log the tool call
+                    // Log the tool call (sanitize LLM strings — PostgreSQL rejects \0 in text)
                     _db.ToolCallLogs.Add(new ToolCallLog
                     {
                         Id = Guid.NewGuid(),
                         TenantId = _currentTenant.TenantId,
                         AgentRunId = agentRun.Id,
                         ToolName = toolCall.FunctionName,
-                        InputJson = toolCall.FunctionArguments.ToString(),
-                        OutputJson = toolResult,
+                        InputJson = Sanitize(toolCall.FunctionArguments.ToString()),
+                        OutputJson = Sanitize(toolResult),
                         DurationMs = (int)toolStopwatch.ElapsedMilliseconds,
                         Succeeded = succeeded,
-                        ErrorMessage = errorMessage
+                        ErrorMessage = Sanitize(errorMessage)
                     });
 
                     // Send the tool result back to the AI
@@ -189,7 +189,7 @@ public sealed class AgentOrchestrator : IAgentOrchestrator
             catch { /* ignore extraction errors */ }
 
             agentRun.Status = "Failed";
-            agentRun.ErrorMessage = fullError;
+            agentRun.ErrorMessage = Sanitize(fullError);
             agentRun.CompletedAt = DateTime.UtcNow;
             agentRun.DurationMs = (int)stopwatch.ElapsedMilliseconds;
             agentRun.TokensUsed = totalTokens;
@@ -207,7 +207,7 @@ public sealed class AgentOrchestrator : IAgentOrchestrator
         {
             stopwatch.Stop();
             agentRun.Status = "Failed";
-            agentRun.ErrorMessage = ex.Message;
+            agentRun.ErrorMessage = Sanitize(ex.Message);
             agentRun.CompletedAt = DateTime.UtcNow;
             agentRun.DurationMs = (int)stopwatch.ElapsedMilliseconds;
             agentRun.TokensUsed = totalTokens;
@@ -221,6 +221,12 @@ public sealed class AgentOrchestrator : IAgentOrchestrator
                 (int)stopwatch.ElapsedMilliseconds, false, ex.Message);
         }
     }
+
+    /// <summary>
+    /// Strips null bytes that Azure OpenAI responses may contain — PostgreSQL rejects \0 in text columns.
+    /// </summary>
+    private static string? Sanitize(string? value) =>
+        value?.Replace("\0", string.Empty);
 
     /// <summary>
     /// Builds ChatCompletionOptions with the tool definitions for the given agent tools.

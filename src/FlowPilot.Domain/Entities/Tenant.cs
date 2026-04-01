@@ -8,6 +8,7 @@ namespace FlowPilot.Domain.Entities;
 public class Tenant : BaseEntity
 {
     public string BusinessName { get; set; } = string.Empty;
+    public string Slug { get; set; } = string.Empty;
     public string? BusinessPhone { get; set; }
     public string? BusinessEmail { get; set; }
     public string? Timezone { get; set; }

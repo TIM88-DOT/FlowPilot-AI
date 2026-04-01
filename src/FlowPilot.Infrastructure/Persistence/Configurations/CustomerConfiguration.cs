@@ -19,6 +19,6 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.NoShowScore).HasPrecision(5, 2).HasDefaultValue(0m);
         builder.Property(c => c.ConsentStatus).HasConversion<string>().HasMaxLength(20);
 
-        builder.HasIndex(c => new { c.Phone, c.TenantId }).IsUnique();
+        builder.HasIndex(c => new { c.Phone, c.FirstName, c.TenantId }).IsUnique();
     }
 }

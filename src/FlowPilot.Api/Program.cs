@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using System.ClientModel;
 using Azure.AI.OpenAI;
 using FlowPilot.Api.Hubs;
+using FlowPilot.Api.Middleware;
 using FlowPilot.Api.Services;
 using FlowPilot.Application.Agents;
 using FlowPilot.Application.Auth;
@@ -10,6 +11,7 @@ using FlowPilot.Application.Appointments;
 using FlowPilot.Application.Customers;
 using FlowPilot.Application.Messaging;
 using FlowPilot.Application.Services;
+using FlowPilot.Application.PublicBooking;
 using FlowPilot.Application.Settings;
 using FlowPilot.Application.Stats;
 using FlowPilot.Application.Templates;
@@ -19,6 +21,7 @@ using FlowPilot.Infrastructure.Agents.Tools;
 using FlowPilot.Infrastructure.Auth;
 using FlowPilot.Infrastructure.Appointments;
 using FlowPilot.Infrastructure.Customers;
+using FlowPilot.Infrastructure.PublicBooking;
 using FlowPilot.Infrastructure.Services;
 using FlowPilot.Infrastructure.Settings;
 using FlowPilot.Infrastructure.Stats;
@@ -82,6 +85,7 @@ builder.Services.AddScoped<IAppointmentService, AppointmentService>();
 builder.Services.AddScoped<IServiceService, ServiceService>();
 builder.Services.AddScoped<ITenantSettingsService, TenantSettingsService>();
 builder.Services.AddScoped<IDashboardStatsService, DashboardStatsService>();
+builder.Services.AddScoped<IPublicBookingService, PublicBookingService>();
 
 // ---------------------------------------------------------------------------
 // Messaging services — ISmsProvider swapped by config: "Fake" (dev) or "Twilio" (prod)
@@ -218,6 +222,7 @@ app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<PublicTenantMiddleware>();
 app.MapHub<AppointmentHub>("/hubs/appointments");
 
 // ---------------------------------------------------------------------------
@@ -730,6 +735,48 @@ statsGroup.MapGet("/dashboard", async (IDashboardStatsService statsService, Canc
     return result.IsFailure
         ? Results.Problem(result.Error.Description, statusCode: 400)
         : Results.Ok(result.Value);
+});
+
+// ---------------------------------------------------------------------------
+// Public Booking Endpoints — /api/v1/public/book/{slug}
+// No authentication required. Tenant resolved from slug by PublicTenantMiddleware.
+// ---------------------------------------------------------------------------
+RouteGroupBuilder publicBookingGroup = app.MapGroup("/api/v1/public/book/{slug}");
+
+publicBookingGroup.MapGet("/", async (string slug, IPublicBookingService bookingService, CancellationToken ct) =>
+{
+    Result<PublicBusinessInfoDto> result = await bookingService.GetBusinessInfoAsync(ct);
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 404)
+        : Results.Ok(result.Value);
+});
+
+publicBookingGroup.MapGet("/slots", async (string slug, string date, Guid serviceId, IPublicBookingService bookingService, CancellationToken ct) =>
+{
+    if (!DateTime.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime parsedDate))
+        return Results.Problem("Invalid date format. Use yyyy-MM-dd.", statusCode: 400);
+
+    Result<List<TimeSlotDto>> result = await bookingService.GetAvailableSlotsAsync(parsedDate, serviceId, ct);
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 400)
+        : Results.Ok(result.Value);
+});
+
+publicBookingGroup.MapPost("/", async (string slug, PublicBookingRequest request, IPublicBookingService bookingService, CancellationToken ct) =>
+{
+    Result<PublicBookingConfirmationDto> result = await bookingService.BookAsync(request, ct);
+    if (result.IsFailure)
+    {
+        int status = result.Error.Code switch
+        {
+            "Service.NotFound" => 404,
+            "Booking.SlotUnavailable" => 409,
+            "Customer.InvalidPhone" => 400,
+            _ => 400
+        };
+        return Results.Problem(result.Error.Description, statusCode: status);
+    }
+    return Results.Created($"/api/v1/public/book/{slug}/confirmation/{result.Value.AppointmentId}", result.Value);
 });
 
 // ---------------------------------------------------------------------------
