@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Users,
   CalendarDays,
+  MessageSquare,
   FileText,
   Settings,
   LogOut,
@@ -17,6 +18,7 @@ const navItems = [
   { to: "/app", icon: LayoutDashboard, label: "Dashboard", end: true },
   { to: "/app/customers", icon: Users, label: "Customers" },
   { to: "/app/appointments", icon: CalendarDays, label: "Appointments" },
+  { to: "/app/inbox", icon: MessageSquare, label: "SMS Inbox" },
   { to: "/app/templates", icon: FileText, label: "Templates" },
   { to: "/app/settings", icon: Settings, label: "Settings" },
 ];

@@ -1,3 +1,4 @@
+using FlowPilot.Application.Customers;
 using FlowPilot.Application.Messaging;
 using FlowPilot.Domain.Entities;
 using FlowPilot.Domain.Enums;
@@ -149,6 +150,13 @@ public sealed class MessagingService : IMessagingService
         _db.Messages.Add(message);
         await _db.SaveChangesAsync(cancellationToken);
 
+        // Publish event for non-STOP inbound messages → triggers ReplyHandlingAgent + SignalR
+        if (!StopKeywords.Contains(normalizedBody))
+        {
+            await _mediator.Publish(new InboundSmsReceivedEvent(
+                message.Id, customer.Id, _currentTenant.TenantId, webhook.Body, webhook.FromPhone), cancellationToken);
+        }
+
         return Result.Success();
     }
 
@@ -182,6 +190,97 @@ public sealed class MessagingService : IMessagingService
         }
 
         return Result.Success();
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<PagedResult<ConversationSummaryDto>>> GetConversationsAsync(
+        string? search, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        // Subquery: latest message per customer
+        IQueryable<Message> messagesQuery = _db.Messages.AsNoTracking();
+
+        // If searching, filter to customers matching the search term first
+        IQueryable<Customer> customersQuery = _db.Customers.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string term = search.Trim().ToLower();
+            customersQuery = customersQuery.Where(c =>
+                c.FirstName.ToLower().Contains(term)
+                || (c.LastName != null && c.LastName.ToLower().Contains(term))
+                || c.Phone.Contains(term));
+        }
+
+        // Get customer IDs that have messages
+        IQueryable<Guid> customerIdsWithMessages = messagesQuery
+            .Select(m => m.CustomerId)
+            .Distinct();
+
+        // Intersect with search filter
+        IQueryable<Customer> filteredCustomers = customersQuery
+            .Where(c => customerIdsWithMessages.Contains(c.Id));
+
+        int totalCount = await filteredCustomers.CountAsync(cancellationToken);
+
+        // For each customer, get the latest message + total count
+        List<ConversationSummaryDto> items = await filteredCustomers
+            .Select(c => new
+            {
+                Customer = c,
+                LastMessage = _db.Messages.AsNoTracking()
+                    .Where(m => m.CustomerId == c.Id)
+                    .OrderByDescending(m => m.CreatedAt)
+                    .First(),
+                TotalMessages = _db.Messages.AsNoTracking()
+                    .Count(m => m.CustomerId == c.Id)
+            })
+            .OrderByDescending(x => x.LastMessage.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => new ConversationSummaryDto(
+                x.Customer.Id,
+                x.Customer.FirstName,
+                x.Customer.LastName,
+                x.Customer.Phone,
+                x.LastMessage.Body,
+                x.LastMessage.CreatedAt,
+                x.LastMessage.Direction.ToString(),
+                x.TotalMessages))
+            .ToListAsync(cancellationToken);
+
+        return Result.Success(new PagedResult<ConversationSummaryDto>(items, totalCount, page, pageSize));
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<PagedResult<MessageDto>>> GetMessagesAsync(
+        Guid customerId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        // Verify customer exists in this tenant
+        bool customerExists = await _db.Customers.AsNoTracking()
+            .AnyAsync(c => c.Id == customerId, cancellationToken);
+
+        if (!customerExists)
+            return Result.Failure<PagedResult<MessageDto>>(Error.NotFound("Customer", customerId));
+
+        IQueryable<Message> query = _db.Messages.AsNoTracking()
+            .Where(m => m.CustomerId == customerId);
+
+        int totalCount = await query.CountAsync(cancellationToken);
+
+        List<MessageDto> items = await query
+            .OrderByDescending(m => m.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(m => new MessageDto(
+                m.Id,
+                m.Body,
+                m.Direction.ToString(),
+                m.Status.ToString(),
+                m.CreatedAt,
+                m.FromPhone,
+                m.ToPhone))
+            .ToListAsync(cancellationToken);
+
+        return Result.Success(new PagedResult<MessageDto>(items, totalCount, page, pageSize));
     }
 
     // -----------------------------------------------------------------------

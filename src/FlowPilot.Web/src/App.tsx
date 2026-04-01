@@ -15,6 +15,7 @@ const CustomersPage = lazy(() => import("./pages/app/CustomersPage"));
 const AppointmentsPage = lazy(() => import("./pages/app/AppointmentsPage"));
 const TemplatesPage = lazy(() => import("./pages/app/TemplatesPage"));
 const SettingsPage = lazy(() => import("./pages/app/SettingsPage"));
+const SmsInboxPage = lazy(() => import("./pages/app/SmsInboxPage"));
 const BookingPage = lazy(() => import("./pages/BookingPage"));
 
 const queryClient = new QueryClient({
@@ -47,6 +48,7 @@ function App() {
                   <Route path="/app" element={<DashboardPage />} />
                   <Route path="/app/customers" element={<CustomersPage />} />
                   <Route path="/app/appointments" element={<AppointmentsPage />} />
+                  <Route path="/app/inbox" element={<SmsInboxPage />} />
                   <Route path="/app/templates" element={<TemplatesPage />} />
                   <Route path="/app/settings" element={<SettingsPage />} />
                 </Route>

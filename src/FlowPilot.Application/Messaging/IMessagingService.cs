@@ -1,3 +1,4 @@
+using FlowPilot.Application.Customers;
 using FlowPilot.Shared;
 
 namespace FlowPilot.Application.Messaging;
@@ -53,6 +54,18 @@ public interface IMessagingService
     /// Idempotent upsert on ProviderMessageId + Status.
     /// </summary>
     Task<Result> ProcessDeliveryStatusAsync(DeliveryStatusWebhook webhook, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns paginated conversation summaries (one per customer with messages), ordered by most recent.
+    /// </summary>
+    Task<Result<PagedResult<ConversationSummaryDto>>> GetConversationsAsync(
+        string? search, int page, int pageSize, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns paginated messages for a specific customer conversation, newest first.
+    /// </summary>
+    Task<Result<PagedResult<MessageDto>>> GetMessagesAsync(
+        Guid customerId, int page, int pageSize, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

@@ -9,3 +9,14 @@ namespace FlowPilot.Application.Messaging;
 public sealed record CustomerOptedOutEvent(
     Guid CustomerId,
     Guid TenantId) : INotification;
+
+/// <summary>
+/// Published when a non-STOP inbound SMS is received and persisted.
+/// Triggers ReplyHandlingAgent classification and real-time UI updates.
+/// </summary>
+public sealed record InboundSmsReceivedEvent(
+    Guid MessageId,
+    Guid CustomerId,
+    Guid TenantId,
+    string Body,
+    string FromPhone) : INotification;

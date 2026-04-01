@@ -224,6 +224,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<PublicTenantMiddleware>();
 app.MapHub<AppointmentHub>("/hubs/appointments");
+app.MapHub<SmsHub>("/hubs/sms");
 
 // ---------------------------------------------------------------------------
 // Auth Endpoints — /api/v1/auth
@@ -602,6 +603,51 @@ messagingGroup.MapPost("/send", async (SendSmsRequest request, IMessagingService
 messagingGroup.MapPost("/send-raw", async (SendRawSmsRequest request, IMessagingService messagingService, CancellationToken ct) =>
 {
     Result<SendSmsResponse> result = await messagingService.SendRawAsync(request, ct);
+
+    if (result.IsFailure)
+    {
+        int status = result.Error.Code switch
+        {
+            "Messaging.ConsentRequired" => 403,
+            "Customer.NotFound" => 404,
+            _ => 400
+        };
+        return Results.Problem(result.Error.Description, statusCode: status);
+    }
+
+    return Results.Ok(result.Value);
+});
+
+messagingGroup.MapGet("/conversations", async (
+    string? search, int? page, int? pageSize,
+    IMessagingService messagingService, CancellationToken ct) =>
+{
+    Result<PagedResult<ConversationSummaryDto>> result = await messagingService.GetConversationsAsync(
+        search, page ?? 1, pageSize ?? 25, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: 400)
+        : Results.Ok(result.Value);
+});
+
+messagingGroup.MapGet("/conversations/{customerId:guid}/messages", async (
+    Guid customerId, int? page, int? pageSize,
+    IMessagingService messagingService, CancellationToken ct) =>
+{
+    Result<PagedResult<MessageDto>> result = await messagingService.GetMessagesAsync(
+        customerId, page ?? 1, pageSize ?? 50, ct);
+
+    return result.IsFailure
+        ? Results.Problem(result.Error.Description, statusCode: result.Error.Code.Contains("NotFound") ? 404 : 400)
+        : Results.Ok(result.Value);
+});
+
+messagingGroup.MapPost("/conversations/{customerId:guid}/send", async (
+    Guid customerId, SendManualSmsRequest body,
+    IMessagingService messagingService, CancellationToken ct) =>
+{
+    Result<SendSmsResponse> result = await messagingService.SendRawAsync(
+        new SendRawSmsRequest(customerId, body.Body), ct);
 
     if (result.IsFailure)
     {
