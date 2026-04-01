@@ -15,6 +15,7 @@ using FlowPilot.Application.PublicBooking;
 using FlowPilot.Application.Settings;
 using FlowPilot.Application.Stats;
 using FlowPilot.Application.Templates;
+using FlowPilot.Domain.Entities;
 using FlowPilot.Domain.Enums;
 using FlowPilot.Infrastructure.Agents;
 using FlowPilot.Infrastructure.Agents.Tools;
@@ -575,6 +576,65 @@ webhookGroup.MapPost("/sms/status", async (DeliveryStatusWebhook webhook, IMessa
     return result.IsFailure
         ? Results.Problem(result.Error.Description, statusCode: 400)
         : Results.Ok(new { message = "Status updated." });
+});
+
+// ---------------------------------------------------------------------------
+// Twilio Webhooks — /api/webhooks/twilio (unauthenticated, tenant resolved from To phone)
+// ---------------------------------------------------------------------------
+RouteGroupBuilder twilioGroup = app.MapGroup("/api/webhooks/twilio").AllowAnonymous();
+
+twilioGroup.MapPost("/sms/inbound", async (HttpRequest request, AppDbContext db, IMessagingService messagingService, CancellationToken ct) =>
+{
+    // Twilio sends application/x-www-form-urlencoded
+    IFormCollection form = await request.ReadFormAsync(ct);
+    string messageSid = form["MessageSid"].ToString();
+    string from = form["From"].ToString();
+    string to = form["To"].ToString();
+    string body = form["Body"].ToString();
+
+    if (string.IsNullOrEmpty(messageSid) || string.IsNullOrEmpty(from))
+        return Results.BadRequest(new { error = "Missing required Twilio fields." });
+
+    // Resolve tenant from the To phone (business's Twilio number)
+    TenantSettings? settings = await db.TenantSettings
+        .IgnoreQueryFilters() // No tenant context — resolving tenant from phone number
+        .FirstOrDefaultAsync(s => s.DefaultSenderPhone == to && !s.IsDeleted, ct);
+
+    if (settings is null)
+        return Results.NotFound(new { error = $"No tenant found for phone {to}." });
+
+    // Set tenant context so downstream services scope queries correctly
+    request.HttpContext.Items["PublicTenantId"] = settings.OwnerTenantId;
+
+    Result result = await messagingService.ProcessInboundAsync(
+        new InboundSmsWebhook(messageSid, from, to, body), ct);
+
+    // Twilio expects a 200 with TwiML (empty response = no reply SMS)
+    return Results.Content("<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>", "application/xml");
+});
+
+twilioGroup.MapPost("/sms/status", async (HttpRequest request, AppDbContext db, IMessagingService messagingService, CancellationToken ct) =>
+{
+    IFormCollection form = await request.ReadFormAsync(ct);
+    string messageSid = form["MessageSid"].ToString();
+    string status = form["MessageStatus"].ToString();
+    string to = form["To"].ToString();
+
+    if (string.IsNullOrEmpty(messageSid) || string.IsNullOrEmpty(status))
+        return Results.BadRequest(new { error = "Missing required Twilio fields." });
+
+    // Resolve tenant from To phone
+    TenantSettings? settings = await db.TenantSettings
+        .IgnoreQueryFilters() // No tenant context — resolving tenant from phone number
+        .FirstOrDefaultAsync(s => s.DefaultSenderPhone == to && !s.IsDeleted, ct);
+
+    if (settings is not null)
+        request.HttpContext.Items["PublicTenantId"] = settings.OwnerTenantId;
+
+    Result result = await messagingService.ProcessDeliveryStatusAsync(
+        new DeliveryStatusWebhook(messageSid, status), ct);
+
+    return Results.Content("<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>", "application/xml");
 });
 
 // ---------------------------------------------------------------------------
