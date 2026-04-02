@@ -93,8 +93,10 @@ export default function SmsInboxPage() {
   const [draft, setDraft] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Reset page when search changes
-  useEffect(() => { setPage(1); }, [debouncedSearch]);
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
+    setPage(1);
+  };
 
   /* ---- Queries ---- */
 
@@ -185,7 +187,7 @@ export default function SmsInboxPage() {
                 type="text"
                 placeholder="Search by name or phone..."
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className={`${inputCls} pl-9`}
               />
             </div>
