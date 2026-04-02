@@ -101,7 +101,7 @@ public sealed class MessagingService : IMessagingService
         if (alreadyProcessed)
             return Result.Success();
 
-        // Find customer by phone number (within tenant)
+        // Find customer by phone number (within tenant) — one phone = one customer
         Customer? customer = await _db.Customers
             .FirstOrDefaultAsync(c => c.Phone == webhook.FromPhone, cancellationToken);
 

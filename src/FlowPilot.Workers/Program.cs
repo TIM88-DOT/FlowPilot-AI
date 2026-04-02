@@ -48,6 +48,7 @@ try
     // Hosted services
     builder.Services.AddHostedService<ScheduledMessageDispatcher>();
     builder.Services.AddHostedService<AppointmentAutoCompletionWorker>();
+    builder.Services.AddHostedService<AppointmentAutoConfirmWorker>();
 
     var host = builder.Build();
     host.Run();

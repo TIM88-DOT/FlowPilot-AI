@@ -44,7 +44,8 @@ public sealed record PublicBookingRequest(
     string? Email,
     Guid ServiceId,
     DateTime StartsAt,
-    string? Notes);
+    string? Notes,
+    string? PreferredLanguage);
 
 /// <summary>
 /// Confirmation returned after a successful public booking.

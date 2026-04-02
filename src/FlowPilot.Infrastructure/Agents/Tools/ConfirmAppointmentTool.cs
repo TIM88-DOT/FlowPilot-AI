@@ -39,7 +39,12 @@ public sealed class ConfirmAppointmentTool : IAgentTool
         Result<AppointmentDto> result = await _appointmentService.ConfirmAsync(appointmentId, cancellationToken);
 
         if (result.IsFailure)
-            return JsonSerializer.Serialize(new { success = false, error = result.Error.Description });
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                error = result.Error.Description,
+                hint = "This appointment may already be Confirmed. Check the appointment list in context and pick the correct Scheduled appointment."
+            });
 
         return JsonSerializer.Serialize(new
         {

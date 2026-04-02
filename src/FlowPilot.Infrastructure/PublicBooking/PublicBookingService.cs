@@ -198,23 +198,20 @@ public sealed class PublicBookingService : IPublicBookingService
             return Result.Failure<PublicBookingConfirmationDto>(
                 Error.Validation("Customer.InvalidPhone", "Phone number is not valid. Provide a number with country code (e.g. +213555123456)."));
 
-        // Find or create customer — match on phone + first name so different people sharing
-        // a phone number (family, receptionist) get separate customer records.
-        string trimmedFirstName = request.FirstName.Trim();
+        // Find or create customer by phone — one phone = one customer identity.
         Customer? customer = await _db.Customers
-            .FirstOrDefaultAsync(c => c.Phone == normalizedPhone
-                && c.FirstName.ToLower() == trimmedFirstName.ToLower(), ct);
+            .FirstOrDefaultAsync(c => c.Phone == normalizedPhone, ct);
 
         if (customer is null)
         {
             customer = new Customer
             {
                 Phone = normalizedPhone,
-                FirstName = trimmedFirstName,
+                FirstName = request.FirstName.Trim(),
                 LastName = request.LastName,
                 Email = request.Email,
-                PreferredLanguage = "fr",
-                ConsentStatus = ConsentStatus.Pending
+                PreferredLanguage = request.PreferredLanguage ?? "fr",
+                ConsentStatus = ConsentStatus.OptedIn
             };
 
             _db.Customers.Add(customer);
@@ -222,20 +219,23 @@ public sealed class PublicBookingService : IPublicBookingService
             _db.ConsentRecords.Add(new ConsentRecord
             {
                 CustomerId = customer.Id,
-                Status = ConsentStatus.Pending,
+                Status = ConsentStatus.OptedIn,
                 Source = ConsentSource.Booking,
-                Notes = "Customer self-booked via public booking page"
+                Notes = "Customer opted in by self-booking via public booking page"
             });
 
             await _db.SaveChangesAsync(ct);
         }
         else
         {
-            // Same person re-booking — fill in missing fields only
-            if (!string.IsNullOrWhiteSpace(request.LastName) && string.IsNullOrWhiteSpace(customer.LastName))
+            // Returning customer — update name, language, and fill missing fields
+            customer.FirstName = request.FirstName.Trim();
+            if (!string.IsNullOrWhiteSpace(request.LastName))
                 customer.LastName = request.LastName;
             if (!string.IsNullOrWhiteSpace(request.Email) && string.IsNullOrWhiteSpace(customer.Email))
                 customer.Email = request.Email;
+            if (!string.IsNullOrWhiteSpace(request.PreferredLanguage))
+                customer.PreferredLanguage = request.PreferredLanguage;
             await _db.SaveChangesAsync(ct);
         }
 

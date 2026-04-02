@@ -51,6 +51,20 @@ public sealed class ReplyHandlingAgent
            - Below 0.50: Cannot determine intent
         6. If intent is Confirm AND confidence >= 0.85, also call confirm_appointment.
         7. Consider that customers may reply in French, Arabic, or informal Algerian dialect (Darija).
+
+        MULTIPLE APPOINTMENTS:
+        - A customer may have several upcoming appointments. All of them are listed in the context.
+        - If the reply is a clear confirmation ("Oui", "OK", "Je confirme", "Confirm") with no date/service
+          mentioned, apply it to the SOONEST upcoming Scheduled appointment only.
+        - If the reply mentions a specific date, time, or service name, match it to the correct appointment.
+        - If intent is Confirm, call confirm_appointment for the matched appointment only — not all of them.
+
+        IMPORTANT — Distinguish acknowledgment from confirmation:
+        - Words like "Nice", "Cool", "Merci", "Thanks", "D'accord", "👍" after a BOOKING notification
+          are acknowledgments (classify as Other), NOT confirmations.
+        - A confirmation is an explicit intent to confirm attendance: "Oui", "OK", "Confirm", "Je confirme",
+          "I'll be there", "نعم", "واه".
+        - When in doubt, classify as Other with low confidence rather than accidentally confirming.
         """;
 
     public ReplyHandlingAgent(
@@ -72,19 +86,26 @@ public sealed class ReplyHandlingAgent
     public async Task<IntentClassification?> ClassifyAndActAsync(
         Guid customerId, string messageBody, CancellationToken cancellationToken = default)
     {
-        // Find the customer's next upcoming appointment for context
-        Appointment? nextAppointment = await _db.Appointments
+        // Find all upcoming appointments for this customer so the agent can match the reply
+        List<Appointment> upcomingAppointments = await _db.Appointments
             .AsNoTracking()
             .Where(a => a.CustomerId == customerId
                 && (a.Status == Domain.Enums.AppointmentStatus.Scheduled
                     || a.Status == Domain.Enums.AppointmentStatus.Confirmed)
                 && a.StartsAt > DateTime.UtcNow)
             .OrderBy(a => a.StartsAt)
-            .FirstOrDefaultAsync(cancellationToken);
+            .Take(10)
+            .ToListAsync(cancellationToken);
 
         string userMessage = $"Customer {customerId} sent this SMS: \"{messageBody}\"";
-        if (nextAppointment is not null)
-            userMessage += $"\nTheir next appointment is {nextAppointment.Id} on {nextAppointment.StartsAt:yyyy-MM-dd HH:mm} for {nextAppointment.ServiceName}.";
+        if (upcomingAppointments.Count > 0)
+        {
+            userMessage += "\nUpcoming appointments:";
+            foreach (Appointment apt in upcomingAppointments)
+            {
+                userMessage += $"\n- {apt.Id} | {apt.StartsAt:yyyy-MM-dd HH:mm} | {apt.ServiceName} | Status: {apt.Status}";
+            }
+        }
 
         AgentRunResult result = await _orchestrator.RunAsync(new AgentRequest(
             AgentType: "ReplyHandling",

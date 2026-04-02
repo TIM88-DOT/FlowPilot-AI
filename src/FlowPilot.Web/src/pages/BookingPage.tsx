@@ -145,6 +145,7 @@ export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlot, setSelectedSlot] = useState<TimeSlotDto | null>(null);
   const [confirmation, setConfirmation] = useState<BookingConfirmation | null>(null);
+  const [preferredLanguage, setPreferredLanguage] = useState("fr");
 
   const {
     register,
@@ -192,6 +193,7 @@ export default function BookingPage() {
           serviceId: selectedService!.id,
           startsAt: `${selectedDate}T${selectedSlot!.startTime}:00`,
           notes: data.notes || null,
+          preferredLanguage,
         })
         .then((r) => r.data),
     onSuccess: (data: BookingConfirmation) => {
@@ -507,6 +509,19 @@ export default function BookingPage() {
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors resize-none"
                   placeholder="Any special requests..."
                 />
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-medium text-ink mb-1.5">SMS Language</label>
+                <select
+                  value={preferredLanguage}
+                  onChange={(e) => setPreferredLanguage(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink focus:outline-none focus:border-teal transition-colors"
+                >
+                  <option value="fr">Fran\u00e7ais</option>
+                  <option value="en">English</option>
+                </select>
+                <p className="text-[11px] text-ink-faint mt-1">We'll send reminders in this language.</p>
               </div>
 
               <button

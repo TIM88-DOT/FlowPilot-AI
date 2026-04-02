@@ -161,6 +161,7 @@ function BusinessSettings({ initial }: { initial: TenantSettings | undefined }) 
   const [timezone, setTimezone] = useState(initial?.timezone ?? "Africa/Algiers");
   const [defaultLanguage, setDefaultLanguage] = useState(initial?.defaultLanguage ?? "fr");
   const [currency, setCurrency] = useState(initial?.currency ?? "DZD");
+  const [senderPhone, setSenderPhone] = useState(initial?.defaultSenderPhone ?? "");
 
   const mutation = useSettingsMutation();
 
@@ -173,6 +174,7 @@ function BusinessSettings({ initial }: { initial: TenantSettings | undefined }) 
       timezone,
       defaultLanguage,
       currency,
+      defaultSenderPhone: senderPhone || null,
     });
   };
 
@@ -187,6 +189,10 @@ function BusinessSettings({ initial }: { initial: TenantSettings | undefined }) 
             <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+213551234567" className={inputCls} />
           </FieldBlock>
         </div>
+        <FieldBlock label="SMS Sender Phone (Twilio)">
+            <input value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} placeholder="+12025551234" className={inputCls} />
+            <p className="text-[11px] text-ink-faint mt-1">Your Twilio phone number used to send SMS. Inbound messages to this number are routed to your account.</p>
+          </FieldBlock>
         <FieldBlock label="Email">
           <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@salonbelleza.com" className={inputCls} />
         </FieldBlock>
