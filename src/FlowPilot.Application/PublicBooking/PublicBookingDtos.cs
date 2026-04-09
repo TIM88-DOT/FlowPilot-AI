@@ -14,6 +14,7 @@ public sealed record PublicBusinessInfoDto(
     string? Timezone,
     string Currency,
     BusinessHoursDto? BusinessHours,
+    int MinAdvanceHours,
     List<PublicServiceDto> Services);
 
 /// <summary>

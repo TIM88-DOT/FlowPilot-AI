@@ -17,7 +17,7 @@ public sealed class ScheduledMessageDispatcher : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ScheduledMessageDispatcher> _logger;
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5); // TEST MODE — was 30s
 
     public ScheduledMessageDispatcher(
         IServiceScopeFactory scopeFactory,

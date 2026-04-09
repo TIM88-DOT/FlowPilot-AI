@@ -71,7 +71,7 @@ public sealed class AuthService : IAuthService
                 {"monday":{"enabled":true,"open":"09:00","close":"18:00"},"tuesday":{"enabled":true,"open":"09:00","close":"18:00"},"wednesday":{"enabled":true,"open":"09:00","close":"18:00"},"thursday":{"enabled":true,"open":"09:00","close":"18:00"},"friday":{"enabled":true,"open":"09:00","close":"18:00"},"saturday":{"enabled":true,"open":"09:00","close":"13:00"},"sunday":{"enabled":false,"open":"09:00","close":"18:00"}}
                 """.Trim(),
             BookingSettingsJson = """
-                {"bufferMinutes":10,"maxAdvanceDays":60,"minAdvanceHours":2,"allowCancel":true,"cancelBeforeHours":24,"allowReschedule":true,"rescheduleBeforeHours":24}
+                {"bufferMinutes":10,"maxAdvanceDays":60,"minAdvanceHours":0,"allowCancel":true,"cancelBeforeHours":24,"allowReschedule":true,"rescheduleBeforeHours":24}
                 """.Trim(),
             NotificationSettingsJson = """
                 {"reminderTimingHours":24,"secondReminder":true,"secondReminderTimingHours":2,"confirmationEnabled":true,"noShowFollowUp":true,"smsSignature":null}

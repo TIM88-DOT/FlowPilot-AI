@@ -38,6 +38,10 @@ try
     else
         builder.Services.AddScoped<ISmsProvider, FakeSmsProvider>();
 
+    // MessagingService + TemplateRenderer — needed by AppointmentBookedSmsHandler (MediatR)
+    builder.Services.AddScoped<IMessagingService, MessagingService>();
+    builder.Services.AddScoped<ITemplateRenderer, TemplateRenderer>();
+
     // No-op agent orchestrator — AI agents require Azure OpenAI (API host only)
     builder.Services.AddScoped<IAgentOrchestrator, NoOpAgentOrchestrator>();
 

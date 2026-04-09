@@ -19,8 +19,8 @@ public sealed class AppointmentAutoConfirmWorker : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<AppointmentAutoConfirmWorker> _logger;
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan AutoConfirmWindow = TimeSpan.FromHours(3);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5); // TEST MODE — was 30s
+    private static readonly TimeSpan AutoConfirmWindow = TimeSpan.FromMinutes(3); // TEST MODE — was 3 hours
 
     public AppointmentAutoConfirmWorker(
         IServiceScopeFactory scopeFactory,
