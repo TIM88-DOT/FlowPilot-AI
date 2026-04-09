@@ -63,7 +63,12 @@ public sealed class AppointmentBookedSmsHandler : INotificationHandler<Appointme
 
         string businessName = tenant?.BusinessName ?? "our office";
         string lang = customer.PreferredLanguage ?? "fr";
-        string body = BuildConfirmationBody(lang, customer.FirstName, appointment.ServiceName, businessName, notification.StartsAt);
+
+        // Convert UTC appointment time to tenant's local timezone for the SMS body
+        TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById(tenant?.Timezone ?? "UTC");
+        DateTime startsAtLocal = TimeZoneInfo.ConvertTimeFromUtc(notification.StartsAt, tz);
+
+        string body = BuildConfirmationBody(lang, customer.FirstName, appointment.ServiceName, businessName, startsAtLocal);
 
         var request = new SendRawSmsRequest(customer.Id, body);
         Result<SendSmsResponse> result = await _messagingService.SendRawAsync(request, cancellationToken);

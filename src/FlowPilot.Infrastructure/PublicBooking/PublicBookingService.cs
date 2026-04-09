@@ -8,6 +8,7 @@ using FlowPilot.Infrastructure.Persistence;
 using FlowPilot.Shared;
 using FlowPilot.Shared.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using PhoneNumbers;
 
 namespace FlowPilot.Infrastructure.PublicBooking;
@@ -22,6 +23,7 @@ public sealed class PublicBookingService : IPublicBookingService
     private readonly AppDbContext _db;
     private readonly ICurrentTenant _currentTenant;
     private readonly IAppointmentService _appointmentService;
+    private readonly ILogger<PublicBookingService> _logger;
 
     private static readonly PhoneNumberUtil PhoneUtil = PhoneNumberUtil.GetInstance();
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -30,11 +32,12 @@ public sealed class PublicBookingService : IPublicBookingService
         PropertyNameCaseInsensitive = true
     };
 
-    public PublicBookingService(AppDbContext db, ICurrentTenant currentTenant, IAppointmentService appointmentService)
+    public PublicBookingService(AppDbContext db, ICurrentTenant currentTenant, IAppointmentService appointmentService, ILogger<PublicBookingService> logger)
     {
         _db = db;
         _currentTenant = currentTenant;
         _appointmentService = appointmentService;
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -56,6 +59,7 @@ public sealed class PublicBookingService : IPublicBookingService
             .ToListAsync(ct);
 
         BusinessHoursDto? businessHours = Deserialize<BusinessHoursDto>(tenant.Settings?.BusinessHoursJson);
+        BookingSettingsDto? bookingSettings = Deserialize<BookingSettingsDto>(tenant.Settings?.BookingSettingsJson);
 
         return Result.Success(new PublicBusinessInfoDto(
             BusinessName: tenant.BusinessName,
@@ -66,6 +70,7 @@ public sealed class PublicBookingService : IPublicBookingService
             Timezone: tenant.Timezone,
             Currency: tenant.Currency,
             BusinessHours: businessHours,
+            MinAdvanceHours: bookingSettings?.MinAdvanceHours ?? 2,
             Services: services));
     }
 
@@ -85,14 +90,23 @@ public sealed class PublicBookingService : IPublicBookingService
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.OwnerTenantId == _currentTenant.TenantId, ct);
 
+        // Load tenant timezone — business hours are in the tenant's local time
+        Tenant? tenant = await _db.Tenants.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == _currentTenant.TenantId, ct);
+        TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById(tenant?.Timezone ?? "UTC");
+        DateTime nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+
         BusinessHoursDto? businessHours = Deserialize<BusinessHoursDto>(settings?.BusinessHoursJson);
         BookingSettingsDto? bookingSettings = Deserialize<BookingSettingsDto>(settings?.BookingSettingsJson);
 
         if (businessHours is null)
             return Result.Success(new List<TimeSlotDto>());
 
+        // Interpret the requested date in the tenant's local timezone
+        DateTime dateOnly = date.Date;
+
         // Get hours for the requested day
-        DayHoursDto? dayHours = GetDayHours(businessHours, date.DayOfWeek);
+        DayHoursDto? dayHours = GetDayHours(businessHours, dateOnly.DayOfWeek);
         if (dayHours is null || !dayHours.Enabled)
             return Result.Success(new List<TimeSlotDto>());
 
@@ -100,12 +114,10 @@ public sealed class PublicBookingService : IPublicBookingService
         int maxAdvanceDays = bookingSettings?.MaxAdvanceDays ?? 60;
         int minAdvanceHours = bookingSettings?.MinAdvanceHours ?? 2;
 
-        // Validate booking window
-        DateTime now = DateTime.UtcNow;
-        DateTime dateOnly = date.Date;
-        if (dateOnly < now.Date)
+        // Validate booking window using tenant-local "today"
+        if (dateOnly < nowLocal.Date)
             return Result.Failure<List<TimeSlotDto>>(Error.Validation("Booking.PastDate", "Cannot book in the past."));
-        if (dateOnly > now.Date.AddDays(maxAdvanceDays))
+        if (dateOnly > nowLocal.Date.AddDays(maxAdvanceDays))
             return Result.Failure<List<TimeSlotDto>>(Error.Validation("Booking.TooFarAhead", $"Cannot book more than {maxAdvanceDays} days in advance."));
 
         // Parse business hours
@@ -121,37 +133,45 @@ public sealed class PublicBookingService : IPublicBookingService
         while (true)
         {
             TimeOnly slotEnd = cursor.AddMinutes(durationMinutes);
-            if (slotEnd > closeTime) break;
+            if (slotEnd > closeTime || slotEnd < cursor) break; // past close or wrapped midnight
             candidates.Add((cursor, slotEnd));
-            cursor = cursor.AddMinutes(30);
+            TimeOnly next = cursor.AddMinutes(30);
+            if (next <= cursor) break; // wrapped past midnight
+            cursor = next;
         }
 
         if (candidates.Count == 0)
             return Result.Success(new List<TimeSlotDto>());
 
-        // Get existing appointments for the date (exclude cancelled/rescheduled)
-        DateTime dayStart = DateTime.SpecifyKind(dateOnly, DateTimeKind.Utc);
-        DateTime dayEnd = DateTime.SpecifyKind(dateOnly.AddDays(1), DateTimeKind.Utc);
+        // Convert day boundaries to UTC for querying appointments
+        DateTime dayStartLocal = dateOnly;
+        DateTime dayEndLocal = dateOnly.AddDays(1);
+        DateTime dayStartUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(dayStartLocal, DateTimeKind.Unspecified), tz);
+        DateTime dayEndUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(dayEndLocal, DateTimeKind.Unspecified), tz);
+
         List<(DateTime StartsAt, DateTime EndsAt)> existing = await _db.Appointments
             .AsNoTracking()
-            .Where(a => a.StartsAt >= dayStart && a.StartsAt < dayEnd
+            .Where(a => a.StartsAt >= dayStartUtc && a.StartsAt < dayEndUtc
                 && a.Status != AppointmentStatus.Cancelled
                 && a.Status != AppointmentStatus.Rescheduled)
             .Select(a => new { a.StartsAt, a.EndsAt })
             .ToListAsync(ct)
             .ContinueWith(t => t.Result.Select(a => (a.StartsAt, a.EndsAt)).ToList(), ct);
 
-        // Filter out overlapping slots
-        DateTime earliestAllowed = now.AddHours(minAdvanceHours);
+        // Filter slots: convert each local slot to UTC, skip past ones, check overlaps
+        DateTime earliestAllowedUtc = DateTime.UtcNow.AddHours(minAdvanceHours);
         var available = new List<TimeSlotDto>();
 
         foreach ((TimeOnly slotStart, TimeOnly slotEnd) in candidates)
         {
-            DateTime slotStartUtc = DateTime.SpecifyKind(dateOnly.Add(slotStart.ToTimeSpan()), DateTimeKind.Utc);
-            DateTime slotEndUtc = DateTime.SpecifyKind(dateOnly.Add(slotEnd.ToTimeSpan()), DateTimeKind.Utc);
+            // Convert local slot times to UTC for comparison
+            DateTime slotStartLocal = DateTime.SpecifyKind(dateOnly.Add(slotStart.ToTimeSpan()), DateTimeKind.Unspecified);
+            DateTime slotEndLocal = DateTime.SpecifyKind(dateOnly.Add(slotEnd.ToTimeSpan()), DateTimeKind.Unspecified);
+            DateTime slotStartUtc = TimeZoneInfo.ConvertTimeToUtc(slotStartLocal, tz);
+            DateTime slotEndUtc = TimeZoneInfo.ConvertTimeToUtc(slotEndLocal, tz);
 
             // Skip past slots
-            if (slotStartUtc < earliestAllowed) continue;
+            if (slotStartUtc < earliestAllowedUtc) continue;
 
             // Check overlap with existing appointments (including buffer)
             bool overlaps = existing.Any(e =>
@@ -179,14 +199,24 @@ public sealed class PublicBookingService : IPublicBookingService
         if (service is null)
             return Result.Failure<PublicBookingConfirmationDto>(Error.NotFound("Service", request.ServiceId));
 
-        // Ensure UTC kind for PostgreSQL timestamptz compatibility
-        DateTime startsAtUtc = DateTime.SpecifyKind(request.StartsAt, DateTimeKind.Utc);
-        DateTime endsAt = DateTime.SpecifyKind(startsAtUtc.AddMinutes(service.DurationMinutes), DateTimeKind.Utc);
-        Result<List<TimeSlotDto>> slotsResult = await GetAvailableSlotsAsync(startsAtUtc.Date, request.ServiceId, ct);
+        // Convert local tenant time to UTC — business hours and slot times are in the tenant's timezone
+        Tenant? tenant = await _db.Tenants.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == _currentTenant.TenantId, ct);
+        TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById(tenant?.Timezone ?? "UTC");
+        _logger.LogInformation(
+            "BookAsync: request.StartsAt={StartsAt} Kind={Kind}, TenantTz={Tz}",
+            request.StartsAt, request.StartsAt.Kind, tz.Id);
+        DateTime startsAtLocal = DateTime.SpecifyKind(request.StartsAt, DateTimeKind.Unspecified);
+        DateTime startsAtUtc = TimeZoneInfo.ConvertTimeToUtc(startsAtLocal, tz);
+        DateTime endsAt = startsAtUtc.AddMinutes(service.DurationMinutes);
+        _logger.LogInformation(
+            "BookAsync: startsAtLocal={Local}, startsAtUtc={Utc}, endsAt={End}",
+            startsAtLocal, startsAtUtc, endsAt);
+        Result<List<TimeSlotDto>> slotsResult = await GetAvailableSlotsAsync(startsAtLocal.Date, request.ServiceId, ct);
         if (slotsResult.IsFailure)
             return Result.Failure<PublicBookingConfirmationDto>(slotsResult.Error);
 
-        string requestedTime = startsAtUtc.ToString("HH:mm");
+        string requestedTime = startsAtLocal.ToString("HH:mm");
         bool slotAvailable = slotsResult.Value.Any(s => s.StartTime == requestedTime);
         if (!slotAvailable)
             return Result.Failure<PublicBookingConfirmationDto>(
@@ -228,15 +258,50 @@ public sealed class PublicBookingService : IPublicBookingService
         }
         else
         {
-            // Returning customer — update name, language, and fill missing fields
-            customer.FirstName = request.FirstName.Trim();
-            if (!string.IsNullOrWhiteSpace(request.LastName))
+            // Returning customer — only fill empty fields, never overwrite existing data.
+            // Staff-managed fields (name, email) take precedence over self-service input.
+            bool changed = false;
+
+            if (string.IsNullOrWhiteSpace(customer.FirstName))
+            {
+                customer.FirstName = request.FirstName.Trim();
+                changed = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(customer.LastName) && !string.IsNullOrWhiteSpace(request.LastName))
+            {
                 customer.LastName = request.LastName;
-            if (!string.IsNullOrWhiteSpace(request.Email) && string.IsNullOrWhiteSpace(customer.Email))
+                changed = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(customer.Email) && !string.IsNullOrWhiteSpace(request.Email))
+            {
                 customer.Email = request.Email;
-            if (!string.IsNullOrWhiteSpace(request.PreferredLanguage))
+                changed = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(customer.PreferredLanguage) && !string.IsNullOrWhiteSpace(request.PreferredLanguage))
+            {
                 customer.PreferredLanguage = request.PreferredLanguage;
-            await _db.SaveChangesAsync(ct);
+                changed = true;
+            }
+
+            // Re-opt in if customer had previously opted out and is now booking again
+            if (customer.ConsentStatus != ConsentStatus.OptedIn)
+            {
+                customer.ConsentStatus = ConsentStatus.OptedIn;
+                _db.ConsentRecords.Add(new ConsentRecord
+                {
+                    CustomerId = customer.Id,
+                    Status = ConsentStatus.OptedIn,
+                    Source = ConsentSource.Booking,
+                    Notes = "Customer re-opted in by self-booking via public booking page"
+                });
+                changed = true;
+            }
+
+            if (changed)
+                await _db.SaveChangesAsync(ct);
         }
 
         // Create appointment via existing service — triggers AppointmentCreatedEvent → ReminderOptimizationAgent

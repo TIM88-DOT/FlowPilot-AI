@@ -862,7 +862,7 @@ publicBookingGroup.MapGet("/", async (string slug, IPublicBookingService booking
 
 publicBookingGroup.MapGet("/slots", async (string slug, string date, Guid serviceId, IPublicBookingService bookingService, CancellationToken ct) =>
 {
-    if (!DateTime.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime parsedDate))
+    if (!DateTime.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal, out DateTime parsedDate))
         return Results.Problem("Invalid date format. Use yyyy-MM-dd.", statusCode: 400);
 
     Result<List<TimeSlotDto>> result = await bookingService.GetAvailableSlotsAsync(parsedDate, serviceId, ct);

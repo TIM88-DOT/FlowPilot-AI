@@ -26,10 +26,13 @@ public sealed class MessagingService : IMessagingService
 
     /// <summary>
     /// Keywords that trigger automatic opt-out (case-insensitive).
+    /// Twilio-mandated: STOP, STOPALL, UNSUBSCRIBE, END, QUIT.
+    /// "CANCEL" is intentionally excluded — it's a business intent (cancel appointment)
+    /// routed to the ReplyHandlingAgent instead.
     /// </summary>
     private static readonly HashSet<string> StopKeywords = new(StringComparer.OrdinalIgnoreCase)
     {
-        "STOP", "UNSUBSCRIBE", "CANCEL", "END", "QUIT", "ARRET", "ARRETER"
+        "STOP", "STOPALL", "UNSUBSCRIBE", "END", "QUIT", "ARRET", "ARRETER"
     };
 
     public MessagingService(

@@ -1,6 +1,8 @@
 using FlowPilot.Application.Agents;
 using FlowPilot.Application.Appointments;
+using FlowPilot.Infrastructure.Persistence;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace FlowPilot.Infrastructure.Agents;
@@ -12,6 +14,7 @@ namespace FlowPilot.Infrastructure.Agents;
 public sealed class ReminderOptimizationAgent : INotificationHandler<AppointmentCreatedEvent>
 {
     private readonly IAgentOrchestrator _orchestrator;
+    private readonly AppDbContext _db;
     private readonly ILogger<ReminderOptimizationAgent> _logger;
 
     private static readonly string[] ToolNames =
@@ -21,40 +24,45 @@ public sealed class ReminderOptimizationAgent : INotificationHandler<Appointment
         "schedule_sms"
     ];
 
-    private const string SystemPrompt = """
+    // TEST MODE — original prompt uses 24h/3-4h before. This version uses 1-2 minutes for quick testing.
+    // Revert to production prompt before deploying.
+    private const string SystemPromptTemplate = """
         You are a smart SMS reminder scheduling assistant for FlowPilot, a SaaS platform used by
-        appointment-based businesses in Algeria (hair salons, clinics, etc.).
+        appointment-based businesses (hair salons, clinics, etc.).
 
         Your job: when a new appointment is created, analyze the customer and schedule optimized
         reminder SMS messages.
+
+        ⚠️ TEST MODE — USE SHORT DELAYS FOR TESTING ⚠️
+
+        IMPORTANT: A booking confirmation SMS has ALREADY been sent to the customer when the appointment
+        was created. Do NOT send another confirmation or acknowledgment — only send REMINDERS closer to
+        the appointment time.
 
         RULES:
         1. ALWAYS call get_customer_history and get_appointment_details first to gather context.
         2. Write the SMS in the customer's PreferredLanguage (typically "fr" for French or "ar" for Arabic).
         3. Keep each SMS under 160 characters (1 segment) when possible.
-        4. Include: business name context, date/time, service name, and a confirmation prompt
-           (e.g. "Répondez OUI pour confirmer").
-        5. ALWAYS schedule TWO reminders:
-           a) First reminder:
-              - For appointments tomorrow: send the evening before (around 18:00-19:00 local time)
-              - For appointments 2+ days away: send 24h before, during morning hours (9:00-10:00)
-           b) Follow-up reminder (if customer hasn't replied):
-              - Schedule 3-4 hours before the appointment
-              - Use a shorter, more urgent tone (e.g. "Rappel: votre RDV est dans 3h. Confirmez svp!")
-           c) For customers with high no-show scores (>0.3): send an additional early reminder 48h before
+        4. Use a reminder tone, NOT a booking confirmation tone. The customer already knows they booked.
+           Good: "Rappel: votre RDV Haircut est dans 1h. Confirmez svp!"
+           Bad: "Your appointment has been scheduled..." (this was already sent)
+        5. Schedule exactly ONE reminder: 2 MINUTES from now (test mode — normally hours before).
+           Use an urgent reminder tone (e.g. "Rappel: votre RDV est bientôt. Confirmez svp!")
         6. NEVER schedule a reminder for a time that has already passed.
-        7. ALWAYS call schedule_sms for each reminder — do not just describe what you would do.
-        8. If the appointment is less than 4 hours away, schedule only ONE reminder immediately.
+        7. ALWAYS call schedule_sms — do not just describe what you would do.
+        8. When mentioning appointment times in SMS messages, ALWAYS use the tenant's local timezone ({TIMEZONE}).
+           Convert UTC times accordingly. Do NOT show UTC times to customers.
 
-        Note: appointments that are not confirmed 3 hours before start time are auto-confirmed by the system.
+        Note: appointments that are not confirmed 3 minutes before start time are auto-confirmed by the system.
         The follow-up reminder gives the customer a last chance to cancel or confirm before that happens.
 
-        The current timezone context is Africa/Algiers (UTC+1).
+        The current timezone context is {TIMEZONE}.
         """;
 
-    public ReminderOptimizationAgent(IAgentOrchestrator orchestrator, ILogger<ReminderOptimizationAgent> logger)
+    public ReminderOptimizationAgent(IAgentOrchestrator orchestrator, AppDbContext db, ILogger<ReminderOptimizationAgent> logger)
     {
         _orchestrator = orchestrator;
+        _db = db;
         _logger = logger;
     }
 
@@ -64,6 +72,14 @@ public sealed class ReminderOptimizationAgent : INotificationHandler<Appointment
             "ReminderOptimizationAgent triggered for appointment {AppointmentId}, customer {CustomerId}",
             notification.AppointmentId, notification.CustomerId);
 
+        // Load tenant timezone for the system prompt
+        Domain.Entities.Tenant? tenant = await _db.Tenants
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == notification.TenantId, cancellationToken);
+        string timezone = tenant?.Timezone ?? "UTC";
+        string systemPrompt = SystemPromptTemplate
+            .Replace("{TIMEZONE}", timezone);
+
         string userMessage = $"A new appointment has been created. " +
             $"Appointment ID: {notification.AppointmentId}. " +
             $"Customer ID: {notification.CustomerId}. " +
@@ -71,7 +87,7 @@ public sealed class ReminderOptimizationAgent : INotificationHandler<Appointment
 
         AgentRunResult result = await _orchestrator.RunAsync(new AgentRequest(
             AgentType: "ReminderOptimization",
-            SystemPrompt: SystemPrompt,
+            SystemPrompt: systemPrompt,
             UserMessage: userMessage,
             ToolNames: ToolNames,
             AppointmentId: notification.AppointmentId,

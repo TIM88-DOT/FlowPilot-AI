@@ -44,6 +44,7 @@ interface BusinessInfo {
   timezone: string | null;
   currency: string;
   businessHours: BusinessHours | null;
+  minAdvanceHours: number;
   services: PublicServiceDto[];
 }
 
@@ -104,14 +105,19 @@ function formatPrice(price: number | null, currency: string | null): string {
 
 function getMinDate(): string {
   const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split("T")[0];
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function getMaxDate(maxDays: number): string {
   const d = new Date();
   d.setDate(d.getDate() + maxDays);
-  return d.toISOString().split("T")[0];
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 const DAY_KEYS: (keyof BusinessHours)[] = [
@@ -438,7 +444,12 @@ export default function BookingPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-[13px] text-ink-muted text-center py-6">No available times for this date.</p>
+                    <NoSlotsMessage
+                      selectedDate={selectedDate}
+                      closeTime={dayInfo.close}
+                      minAdvanceHours={business.minAdvanceHours}
+                      timezone={business.timezone}
+                    />
                   )}
                 </div>
               );
@@ -633,5 +644,52 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
       <span className="text-[13px] text-ink-muted">{label}</span>
       <span className="text-[13px] font-medium text-ink text-right max-w-[60%]">{value}</span>
     </div>
+  );
+}
+
+function NoSlotsMessage({
+  selectedDate,
+  closeTime,
+  minAdvanceHours,
+  timezone,
+}: {
+  selectedDate: string;
+  closeTime: string;
+  minAdvanceHours: number;
+  timezone: string | null;
+}) {
+  const now = new Date();
+  const selectedDay = new Date(selectedDate + "T12:00:00");
+  const isToday =
+    now.getFullYear() === selectedDay.getFullYear() &&
+    now.getMonth() === selectedDay.getMonth() &&
+    now.getDate() === selectedDay.getDate();
+
+  // Check if the current time + min advance window has passed the closing time
+  if (isToday) {
+    const [closeH, closeM] = closeTime.split(":").map(Number);
+    const closeMins = closeH * 60 + closeM;
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const advanceMins = minAdvanceHours * 60;
+
+    if (nowMins + advanceMins >= closeMins) {
+      return (
+        <div className="text-[13px] text-ink-muted bg-cream-dark/30 border border-border rounded-xl px-4 py-4 text-center">
+          <p className="font-medium text-ink mb-1">All times have passed for today</p>
+          <p>
+            {minAdvanceHours > 0
+              ? `Bookings require at least ${minAdvanceHours}h advance notice. Please pick a future date.`
+              : "Please pick a future date."}
+          </p>
+        </div>
+      );
+    }
+  }
+
+  void timezone;
+  return (
+    <p className="text-[13px] text-ink-muted text-center py-6">
+      No available times for this date. All slots may be booked.
+    </p>
   );
 }
