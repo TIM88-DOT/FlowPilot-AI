@@ -35,7 +35,7 @@ public sealed class CustomerGdprTests : IDisposable
         {
             Id = Guid.NewGuid(),
             TenantId = _fixture.TenantId,
-            Phone = "+213555000001",
+            Phone = "+14165550001",
             Email = "test@example.com",
             FirstName = "John",
             LastName = "Doe",

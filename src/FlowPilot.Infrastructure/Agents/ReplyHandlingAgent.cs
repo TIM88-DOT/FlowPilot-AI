@@ -27,21 +27,23 @@ public sealed class ReplyHandlingAgent
         "get_customer_history",
         "get_appointment_details",
         "classify_intent",
-        "confirm_appointment"
+        "confirm_appointment",
+        "cancel_appointment",
+        "send_reschedule_link"
     ];
 
     private const string SystemPrompt = """
         You are an SMS intent classifier for FlowPilot, a SaaS platform for appointment-based businesses
-        in Algeria. Customers reply to reminder SMS messages and you need to determine their intent.
+        in Canada. Customers reply to reminder SMS messages and you need to determine their intent.
 
         RULES:
         1. Call get_customer_history to understand the customer context.
         2. If the customer has upcoming appointments, call get_appointment_details to get context.
         3. Classify the customer's message into one of these intents:
-           - Confirm: customer is confirming their appointment (e.g. "Oui", "OK", "Je confirme", "نعم")
-           - Cancel: customer wants to cancel (e.g. "Annuler", "Non", "لا")
-           - Reschedule: customer wants to change the time (e.g. "Changer l'heure", "Reporter")
-           - Question: customer is asking a question (e.g. "C'est à quelle heure ?")
+           - Confirm: customer is confirming their appointment (e.g. "Oui", "OK", "Je confirme", "Yes", "Confirmed")
+           - Cancel: customer wants to cancel (e.g. "Annuler", "Cancel", "No", "Non")
+           - Reschedule: customer wants to change the time (e.g. "Reporter", "Changer l'heure", "Reschedule")
+           - Question: customer is asking a question (e.g. "C'est à quelle heure ?", "What time?")
            - Other: anything else
         4. ALWAYS call classify_intent with your classification, confidence score, and reasoning.
         5. Confidence scoring guidelines:
@@ -50,7 +52,15 @@ public sealed class ReplyHandlingAgent
            - 0.50-0.74: Uncertain — needs staff review
            - Below 0.50: Cannot determine intent
         6. If intent is Confirm AND confidence >= 0.85, also call confirm_appointment.
-        7. Consider that customers may reply in French, Arabic, or informal Algerian dialect (Darija).
+        7. If intent is Cancel AND confidence >= 0.85, also call cancel_appointment.
+        8. If intent is Reschedule AND confidence >= 0.85, call send_reschedule_link with the
+           targeted appointment id AND a `language` argument matching the language the customer
+           wrote their SMS in: "en" for English, "fr" for French.
+           Do NOT try to parse a new date/time from the customer's SMS — we send them a web link
+           and let them pick a new slot on the public booking page.
+           If multiple appointments exist and the customer did not specify which one, pick the
+           SOONEST upcoming Scheduled or Confirmed appointment.
+        9. Customers reply in either French or English (Canadian market — both official languages).
 
         MULTIPLE APPOINTMENTS:
         - A customer may have several upcoming appointments. All of them are listed in the context.

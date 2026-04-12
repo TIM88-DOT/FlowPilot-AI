@@ -40,7 +40,7 @@ public sealed class ConsentGateTests : IDisposable
         _fixture.Dispose();
     }
 
-    private async Task<Customer> SeedCustomerAsync(ConsentStatus consent = ConsentStatus.OptedIn, string phone = "+213555000001")
+    private async Task<Customer> SeedCustomerAsync(ConsentStatus consent = ConsentStatus.OptedIn, string phone = "+14165550001")
     {
         var customer = new Customer
         {
@@ -243,7 +243,7 @@ public sealed class ConsentGateTests : IDisposable
     {
         var webhook = new InboundSmsWebhook(
             ProviderSmsSid: $"SM_{Guid.NewGuid()}",
-            FromPhone: "+213555999999",
+            FromPhone: "+14165559999",
             ToPhone: "+10000000000",
             Body: "Who is this?");
 

@@ -54,11 +54,11 @@ public class AuthEndpointsTests : IClassFixture<FlowPilotApiFactory>
     private static object MakeRegisterPayload(
         string email = "test@flowpilot.dev",
         string password = "Test1234!@#",
-        string firstName = "Ahmed",
-        string lastName = "Benali",
+        string firstName = "Alex",
+        string lastName = "Tremblay",
         string businessName = "Salon Prestige",
-        string? businessPhone = "+213555123456",
-        string? timezone = "Africa/Algiers",
+        string? businessPhone = "+14165551234",
+        string? timezone = "America/Toronto",
         string defaultLanguage = "fr") => new
     {
         email,
@@ -127,7 +127,7 @@ public class AuthEndpointsTests : IClassFixture<FlowPilotApiFactory>
         Assert.Equal(HttpStatusCode.Created, http.StatusCode);
         Assert.False(string.IsNullOrWhiteSpace(auth.AccessToken));
         Assert.Equal("register-ok@test.dev", auth.User.Email);
-        Assert.Equal("Ahmed", auth.User.FirstName);
+        Assert.Equal("Alex", auth.User.FirstName);
         Assert.Equal("Owner", auth.User.Role);
         Assert.Equal("Salon Prestige", auth.User.BusinessName);
         Assert.NotEqual(Guid.Empty, auth.User.Id);

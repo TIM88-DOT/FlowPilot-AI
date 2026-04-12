@@ -158,9 +158,9 @@ function BusinessSettings({ initial }: { initial: TenantSettings | undefined }) 
   const [phone, setPhone] = useState(initial?.businessPhone ?? "");
   const [email, setEmail] = useState(initial?.businessEmail ?? "");
   const [address, setAddress] = useState(initial?.address ?? "");
-  const [timezone, setTimezone] = useState(initial?.timezone ?? "Africa/Algiers");
+  const [timezone, setTimezone] = useState(initial?.timezone ?? "America/Toronto");
   const [defaultLanguage, setDefaultLanguage] = useState(initial?.defaultLanguage ?? "fr");
-  const [currency, setCurrency] = useState(initial?.currency ?? "DZD");
+  const [currency, setCurrency] = useState(initial?.currency ?? "CAD");
   const [senderPhone, setSenderPhone] = useState(initial?.defaultSenderPhone ?? "");
 
   const mutation = useSettingsMutation();
@@ -186,7 +186,7 @@ function BusinessSettings({ initial }: { initial: TenantSettings | undefined }) 
             <input value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Salon Belleza" className={inputCls} />
           </FieldBlock>
           <FieldBlock label="Phone">
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+213551234567" className={inputCls} />
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+14165551234" className={inputCls} />
           </FieldBlock>
         </div>
         <FieldBlock label="SMS Sender Phone (Twilio)">
@@ -197,34 +197,30 @@ function BusinessSettings({ initial }: { initial: TenantSettings | undefined }) 
           <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@salonbelleza.com" className={inputCls} />
         </FieldBlock>
         <FieldBlock label="Address">
-          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Rue Didouche Mourad, Algiers" className={inputCls} />
+          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Rue Saint-Denis, Montréal, QC" className={inputCls} />
         </FieldBlock>
         <div className="grid grid-cols-3 gap-4">
           <FieldBlock label="Timezone">
             <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className={inputCls}>
-              <option value="Africa/Algiers">Africa/Algiers (UTC+1)</option>
-              <option value="Africa/Tunis">Africa/Tunis (UTC+1)</option>
-              <option value="Africa/Casablanca">Africa/Casablanca (UTC+1)</option>
-              <option value="Europe/Paris">Europe/Paris (UTC+1/+2)</option>
-              <option value="Europe/London">Europe/London (UTC+0/+1)</option>
-              <option value="America/New_York">America/New_York (UTC-5)</option>
+              <option value="America/Toronto">America/Toronto (ET)</option>
+              <option value="America/Montreal">America/Montreal (ET)</option>
+              <option value="America/Vancouver">America/Vancouver (PT)</option>
+              <option value="America/Edmonton">America/Edmonton (MT)</option>
+              <option value="America/Winnipeg">America/Winnipeg (CT)</option>
+              <option value="America/Halifax">America/Halifax (AT)</option>
+              <option value="America/St_Johns">America/St_Johns (NT)</option>
             </select>
           </FieldBlock>
           <FieldBlock label="Default language">
             <select value={defaultLanguage} onChange={(e) => setDefaultLanguage(e.target.value)} className={inputCls}>
               <option value="fr">French</option>
-              <option value="ar">Arabic</option>
               <option value="en">English</option>
             </select>
           </FieldBlock>
           <FieldBlock label="Currency">
             <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={inputCls}>
-              <option value="DZD">DZD (Dinar)</option>
-              <option value="EUR">EUR (Euro)</option>
-              <option value="USD">USD (Dollar)</option>
-              <option value="MAD">MAD (Dirham)</option>
-              <option value="TND">TND (Dinar)</option>
-              <option value="GBP">GBP (Pound)</option>
+              <option value="CAD">CAD (Canadian Dollar)</option>
+              <option value="USD">USD (US Dollar)</option>
             </select>
           </FieldBlock>
         </div>

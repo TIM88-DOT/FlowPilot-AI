@@ -93,7 +93,7 @@ public sealed class AuthService : IAuthService
             Role = UserRole.Owner
         };
 
-        // Seed system templates with fr + ar locale variants
+        // Seed system templates with fr + en locale variants
         List<Template> templates = CreateSystemTemplates(tenantId);
 
         // Save tenant first — Plan, TenantSettings, User, and Templates all have FK to Tenant
@@ -192,7 +192,7 @@ public sealed class AuthService : IAuthService
     }
 
     /// <summary>
-    /// Creates system templates with French and Arabic locale variants for a new tenant.
+    /// Creates system templates with French and English locale variants for a new tenant.
     /// </summary>
     private static List<Template> CreateSystemTemplates(Guid tenantId)
     {
@@ -223,8 +223,8 @@ public sealed class AuthService : IAuthService
                 Id = Guid.NewGuid(),
                 TenantId = tenantId,
                 TemplateId = reminder.Id,
-                Locale = "ar",
-                Body = "مرحباً {{customer_name}}، تذكير بموعدك يوم {{appointment_date}} الساعة {{appointment_time}}. أجب بنعم للتأكيد أو لا للإلغاء."
+                Locale = "en",
+                Body = "Hi {{customer_name}}, reminder of your appointment on {{appointment_date}} at {{appointment_time}}. Reply YES to confirm or NO to cancel."
             }
         };
         templates.Add(reminder);
@@ -254,8 +254,8 @@ public sealed class AuthService : IAuthService
                 Id = Guid.NewGuid(),
                 TenantId = tenantId,
                 TemplateId = confirmation.Id,
-                Locale = "ar",
-                Body = "شكراً {{customer_name}}! تم تأكيد موعدك يوم {{appointment_date}} الساعة {{appointment_time}}. نراك قريباً!"
+                Locale = "en",
+                Body = "Thanks {{customer_name}}! Your appointment on {{appointment_date}} at {{appointment_time}} is confirmed. See you soon!"
             }
         };
         templates.Add(confirmation);
@@ -285,8 +285,8 @@ public sealed class AuthService : IAuthService
                 Id = Guid.NewGuid(),
                 TenantId = tenantId,
                 TemplateId = review.Id,
-                Locale = "ar",
-                Body = "مرحباً {{customer_name}}، شكراً لزيارتك! سنكون سعداء بمعرفة رأيك: {{review_link}}"
+                Locale = "en",
+                Body = "Hi {{customer_name}}, thanks for your visit! We'd love to hear your feedback: {{review_link}}"
             }
         };
         templates.Add(review);
@@ -316,8 +316,8 @@ public sealed class AuthService : IAuthService
                 Id = Guid.NewGuid(),
                 TenantId = tenantId,
                 TemplateId = cancellation.Id,
-                Locale = "ar",
-                Body = "مرحباً {{customer_name}}، تم إلغاء موعدك يوم {{appointment_date}}. تواصل معنا لإعادة الجدولة."
+                Locale = "en",
+                Body = "Hi {{customer_name}}, your appointment on {{appointment_date}} has been cancelled. Contact us to reschedule."
             }
         };
         templates.Add(cancellation);

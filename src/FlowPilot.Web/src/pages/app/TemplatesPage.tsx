@@ -30,7 +30,7 @@ interface Template {
 }
 
 const SMS_SEGMENT_LENGTH = 160;
-const locales = ["fr", "ar", "en"];
+const locales = ["fr", "en"];
 
 /* ------------------------------------------------------------------ */
 /*  Main page                                                          */
@@ -278,7 +278,6 @@ function TemplateDetail({
         rows={5}
         className="w-full px-4 py-3 rounded-xl border border-border bg-white text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors resize-none"
         placeholder={`Enter ${activeLocale.toUpperCase()} template body...`}
-        dir={activeLocale === "ar" ? "rtl" : "ltr"}
       />
 
       {/* Footer */}
@@ -422,7 +421,6 @@ function CreateTemplateModal({
             <Field label="Locale">
               <select {...register("initialLocale")} className={inputCls}>
                 <option value="fr">FR</option>
-                <option value="ar">AR</option>
                 <option value="en">EN</option>
               </select>
             </Field>

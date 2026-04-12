@@ -35,8 +35,8 @@ public sealed class PhoneNormalizationTests : IDisposable
     // -----------------------------------------------------------------------
 
     [Theory]
-    [InlineData("+213555123456")]    // E.164 Algeria (already formatted)
-    [InlineData("0555123456")]       // Local Algeria format
+    [InlineData("+14165551234")]     // E.164 Canada (already formatted)
+    [InlineData("4165551234")]       // Local Canada format (Toronto area code)
     [InlineData("+33612345678")]     // France
     [InlineData("+14155551234")]     // US
     public async Task Create_ValidPhone_Succeeds(string phone)
@@ -52,16 +52,16 @@ public sealed class PhoneNormalizationTests : IDisposable
     }
 
     [Fact]
-    public async Task Create_AlgerianLocalNumber_NormalizesToE164()
+    public async Task Create_CanadianLocalNumber_NormalizesToE164()
     {
         var request = new CreateCustomerRequest(
-            Phone: "0555123456",
+            Phone: "4165551234",
             FirstName: "Test");
 
         Result<CustomerDto> result = await _sut.CreateAsync(request);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("+213555123456", result.Value.Phone);
+        Assert.Equal("+14165551234", result.Value.Phone);
     }
 
     // -----------------------------------------------------------------------
@@ -92,10 +92,10 @@ public sealed class PhoneNormalizationTests : IDisposable
     [Fact]
     public async Task Create_DuplicatePhone_Fails()
     {
-        await _sut.CreateAsync(new CreateCustomerRequest(Phone: "+213555000001", FirstName: "First"));
+        await _sut.CreateAsync(new CreateCustomerRequest(Phone: "+14165550001", FirstName: "First"));
 
         Result<CustomerDto> result = await _sut.CreateAsync(
-            new CreateCustomerRequest(Phone: "+213555000001", FirstName: "Second"));
+            new CreateCustomerRequest(Phone: "+14165550001", FirstName: "Second"));
 
         Assert.True(result.IsFailure);
         Assert.Equal("Customer.PhoneTaken", result.Error.Code);
@@ -105,11 +105,11 @@ public sealed class PhoneNormalizationTests : IDisposable
     public async Task Create_DuplicatePhone_DifferentFormat_Fails()
     {
         // Create with E.164 format
-        await _sut.CreateAsync(new CreateCustomerRequest(Phone: "+213555000001", FirstName: "First"));
+        await _sut.CreateAsync(new CreateCustomerRequest(Phone: "+14165550001", FirstName: "First"));
 
         // Try with local format — should normalize to same E.164 and fail
         Result<CustomerDto> result = await _sut.CreateAsync(
-            new CreateCustomerRequest(Phone: "0555000001", FirstName: "Second"));
+            new CreateCustomerRequest(Phone: "4165550001", FirstName: "Second"));
 
         Assert.True(result.IsFailure);
         Assert.Equal("Customer.PhoneTaken", result.Error.Code);
@@ -122,7 +122,7 @@ public sealed class PhoneNormalizationTests : IDisposable
     [Fact]
     public async Task Create_DefaultConsentStatus_IsPending()
     {
-        var request = new CreateCustomerRequest(Phone: "+213555111111", FirstName: "New");
+        var request = new CreateCustomerRequest(Phone: "+14165551111", FirstName: "New");
 
         Result<CustomerDto> result = await _sut.CreateAsync(request);
 

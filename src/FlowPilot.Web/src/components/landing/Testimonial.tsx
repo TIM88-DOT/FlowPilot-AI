@@ -3,24 +3,24 @@ import { useFadeIn } from "../../hooks/useFadeIn";
 const testimonials = [
   {
     quote:
-      "FlowPilot reduced our no-shows by 45% in the first month. The AI writes better reminders than we ever did — in French and Arabic.",
-    name: "Fatima R.",
+      "FlowPilot reduced our no-shows by 45% in the first month. The AI writes better reminders than we ever did — in both French and English.",
+    name: "Emily R.",
     role: "Owner",
-    business: "Salon Belleza, Algiers",
+    business: "Belleza Salon, Toronto",
   },
   {
     quote:
-      "Mes clients recoivent un rappel au bon moment, dans leur langue. Je n'ai plus besoin d'appeler chacun manuellement. C'est magique.",
+      "Mes clients reçoivent un rappel au bon moment, dans leur langue. Je n'ai plus besoin d'appeler chacun manuellement. C'est magique.",
     name: "Karim B.",
     role: "Manager",
-    business: "BarberShop DZ, Oran",
+    business: "Studio Coupe, Montréal",
   },
   {
     quote:
       "The review recovery feature tripled our Google reviews in two months. Clients love the personalized follow-up after their visit.",
-    name: "Dr. Leila M.",
+    name: "Dr. Lauren M.",
     role: "Director",
-    business: "Clinique Riadh, Constantine",
+    business: "Riverside Clinic, Vancouver",
   },
 ];
 

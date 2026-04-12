@@ -35,8 +35,8 @@ public sealed class CsvImportTests : IDisposable
     {
         string csv = """
             phone,firstname,lastname,email,language,tags
-            +213555000001,Ali,Benaissa,ali@test.com,fr,vip
-            +213555000002,Sara,Mansouri,sara@test.com,ar,
+            +14165550001,Alex,Tremblay,alex@test.com,fr,vip
+            +14165550002,Sara,Morin,sara@test.com,en,
             """;
 
         Result<CsvImportResult> result = await _sut.ImportCsvAsync(ToCsvStream(csv));
@@ -74,7 +74,7 @@ public sealed class CsvImportTests : IDisposable
         string csv = """
             phone,firstname
             not-a-phone,Ali
-            +213555000003,Sara
+            +14165550003,Sara
             """;
 
         Result<CsvImportResult> result = await _sut.ImportCsvAsync(ToCsvStream(csv));
@@ -90,8 +90,8 @@ public sealed class CsvImportTests : IDisposable
     {
         string csv = """
             phone,firstname
-            +213555000001,Ali
-            +213555000001,Sara
+            +14165550001,Ali
+            +14165550001,Sara
             """;
 
         Result<CsvImportResult> result = await _sut.ImportCsvAsync(ToCsvStream(csv));
@@ -105,12 +105,12 @@ public sealed class CsvImportTests : IDisposable
     public async Task Import_PhoneExistsInDb_SkipsIt()
     {
         // Pre-seed a customer
-        await _sut.CreateAsync(new CreateCustomerRequest(Phone: "+213555000001", FirstName: "Existing"));
+        await _sut.CreateAsync(new CreateCustomerRequest(Phone: "+14165550001", FirstName: "Existing"));
 
         string csv = """
             phone,firstname
-            +213555000001,Ali
-            +213555000002,Sara
+            +14165550001,Ali
+            +14165550002,Sara
             """;
 
         Result<CsvImportResult> result = await _sut.ImportCsvAsync(ToCsvStream(csv));
@@ -140,7 +140,7 @@ public sealed class CsvImportTests : IDisposable
     {
         string csv = """
             phone,firstname,language
-            +213555000001,Ali,
+            +14165550001,Ali,
             """;
 
         Result<CsvImportResult> result = await _sut.ImportCsvAsync(ToCsvStream(csv));
@@ -159,7 +159,7 @@ public sealed class CsvImportTests : IDisposable
     {
         string csv = """
             phone,firstname
-            +213555000001,Ali
+            +14165550001,Ali
             """;
 
         await _sut.ImportCsvAsync(ToCsvStream(csv));

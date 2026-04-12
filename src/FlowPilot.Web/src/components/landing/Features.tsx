@@ -36,9 +36,9 @@ const features: Feature[] = [
   },
   {
     icon: Globe,
-    title: "Multilingual",
+    title: "Bilingual",
     description:
-      "French, Arabic, English out of the box. Every message adapts to each client's language.",
+      "French and English out of the box. Every message adapts to each client's language.",
   },
   {
     icon: BarChart3,

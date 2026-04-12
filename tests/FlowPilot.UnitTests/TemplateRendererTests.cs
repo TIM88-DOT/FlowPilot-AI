@@ -61,12 +61,12 @@ public sealed class TemplateRendererTests : IDisposable
     {
         Guid templateId = await SeedTemplateWithVariantsAsync(
             ("fr", "Bonjour {{name}}"),
-            ("ar", "مرحبا {{name}}"));
+            ("en", "Hello {{name}}"));
 
-        string? result = await _sut.RenderAsync(templateId, "ar", new Dictionary<string, string> { ["name"] = "Ali" });
+        string? result = await _sut.RenderAsync(templateId, "en", new Dictionary<string, string> { ["name"] = "Alex" });
 
         Assert.NotNull(result);
-        Assert.Equal("مرحبا Ali", result);
+        Assert.Equal("Hello Alex", result);
     }
 
     [Fact]
@@ -74,9 +74,9 @@ public sealed class TemplateRendererTests : IDisposable
     {
         Guid templateId = await SeedTemplateWithVariantsAsync(
             ("fr", "Bonjour {{name}}"),
-            ("ar", "مرحبا {{name}}"));
+            ("en", "Hello {{name}}"));
 
-        string? result = await _sut.RenderAsync(templateId, "en", new Dictionary<string, string> { ["name"] = "John" });
+        string? result = await _sut.RenderAsync(templateId, "es", new Dictionary<string, string> { ["name"] = "John" });
 
         Assert.NotNull(result);
         Assert.Equal("Bonjour John", result);
@@ -86,14 +86,14 @@ public sealed class TemplateRendererTests : IDisposable
     public async Task Render_NoExactAndNoFr_FallsBackToFirst()
     {
         Guid templateId = await SeedTemplateWithVariantsAsync(
-            ("ar", "مرحبا {{name}}"),
+            ("en", "Hello {{name}}"),
             ("es", "Hola {{name}}"));
 
-        string? result = await _sut.RenderAsync(templateId, "en", new Dictionary<string, string> { ["name"] = "Test" });
+        string? result = await _sut.RenderAsync(templateId, "de", new Dictionary<string, string> { ["name"] = "Test" });
 
         Assert.NotNull(result);
-        // Falls back to first variant (ar)
-        Assert.Equal("مرحبا Test", result);
+        // Falls back to first variant (en)
+        Assert.Equal("Hello Test", result);
     }
 
     [Fact]

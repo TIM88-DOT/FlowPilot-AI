@@ -507,7 +507,7 @@ function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCr
           </Field>
         </div>
         <Field label="Phone (E.164)" error={errors.phone?.message}>
-          <input {...register("phone")} placeholder="+213551234567" className={inputCls} />
+          <input {...register("phone")} placeholder="+14165551234" className={inputCls} />
         </Field>
         <Field label="Email (optional)" error={errors.email?.message}>
           <input {...register("email")} placeholder="sarah@example.com" className={inputCls} />
@@ -516,7 +516,6 @@ function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCr
           <Field label="Language">
             <select {...register("preferredLanguage")} className={inputCls}>
               <option value="fr">French</option>
-              <option value="ar">Arabic</option>
               <option value="en">English</option>
             </select>
           </Field>
@@ -611,7 +610,6 @@ function EditCustomerModal({
           <Field label="Language">
             <select {...register("preferredLanguage")} className={inputCls}>
               <option value="fr">French</option>
-              <option value="ar">Arabic</option>
               <option value="en">English</option>
             </select>
           </Field>

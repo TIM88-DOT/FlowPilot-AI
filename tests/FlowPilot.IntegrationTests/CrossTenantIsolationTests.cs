@@ -59,7 +59,7 @@ public class CrossTenantIsolationTests : IClassFixture<FlowPilotApiFactory>
         {
             email, password = "Test1234!@#",
             firstName = "Owner", lastName = "Test", businessName,
-            businessPhone = "+213555000000", timezone = "Africa/Algiers", defaultLanguage = "fr"
+            businessPhone = "+14165550000", timezone = "America/Toronto", defaultLanguage = "fr"
         });
         Assert.Equal(HttpStatusCode.Created, http.StatusCode);
         AuthResponseDto? auth = await http.Content.ReadFromJsonAsync<AuthResponseDto>(JsonOptions);
@@ -102,7 +102,7 @@ public class CrossTenantIsolationTests : IClassFixture<FlowPilotApiFactory>
     {
         HttpClient client = CreateClient();
         AuthResponseDto authA = await RegisterAsync(client, "iso-cust-get-a@test.dev", "Salon A");
-        CustomerDto custA = await CreateCustomerAsync(client, "+213770000001", "TenantACust");
+        CustomerDto custA = await CreateCustomerAsync(client, "+14167700001", "TenantACust");
 
         AuthResponseDto authB = await RegisterAsync(client, "iso-cust-get-b@test.dev", "Salon B");
         SwitchToToken(client, authB.AccessToken);
@@ -116,7 +116,7 @@ public class CrossTenantIsolationTests : IClassFixture<FlowPilotApiFactory>
     {
         HttpClient client = CreateClient();
         await RegisterAsync(client, "iso-cust-list-a@test.dev", "Salon A");
-        await CreateCustomerAsync(client, "+213770000002", "InvisibleCust");
+        await CreateCustomerAsync(client, "+14167700002", "InvisibleCust");
 
         AuthResponseDto authB = await RegisterAsync(client, "iso-cust-list-b@test.dev", "Salon B");
         SwitchToToken(client, authB.AccessToken);
@@ -131,7 +131,7 @@ public class CrossTenantIsolationTests : IClassFixture<FlowPilotApiFactory>
     {
         HttpClient client = CreateClient();
         await RegisterAsync(client, "iso-cust-search-a@test.dev", "Salon A");
-        await CreateCustomerAsync(client, "+213770000003", "Unique_SearchName");
+        await CreateCustomerAsync(client, "+14167700003", "Unique_SearchName");
 
         AuthResponseDto authB = await RegisterAsync(client, "iso-cust-search-b@test.dev", "Salon B");
         SwitchToToken(client, authB.AccessToken);
@@ -146,7 +146,7 @@ public class CrossTenantIsolationTests : IClassFixture<FlowPilotApiFactory>
     {
         HttpClient client = CreateClient();
         await RegisterAsync(client, "iso-cust-consent-a@test.dev", "Salon A");
-        CustomerDto custA = await CreateCustomerAsync(client, "+213770000004", "ConsentCust");
+        CustomerDto custA = await CreateCustomerAsync(client, "+14167700004", "ConsentCust");
 
         AuthResponseDto authB = await RegisterAsync(client, "iso-cust-consent-b@test.dev", "Salon B");
         SwitchToToken(client, authB.AccessToken);
@@ -167,7 +167,7 @@ public class CrossTenantIsolationTests : IClassFixture<FlowPilotApiFactory>
     {
         HttpClient client = CreateClient();
         await RegisterAsync(client, "iso-appt-get-a@test.dev", "Salon A");
-        CustomerDto custA = await CreateCustomerAsync(client, "+213770100001", "ApptCust");
+        CustomerDto custA = await CreateCustomerAsync(client, "+14167701001", "ApptCust");
         AppointmentDto apptA = await CreateAppointmentAsync(client, custA.Id);
 
         AuthResponseDto authB = await RegisterAsync(client, "iso-appt-get-b@test.dev", "Salon B");
@@ -182,7 +182,7 @@ public class CrossTenantIsolationTests : IClassFixture<FlowPilotApiFactory>
     {
         HttpClient client = CreateClient();
         await RegisterAsync(client, "iso-appt-confirm-a@test.dev", "Salon A");
-        CustomerDto custA = await CreateCustomerAsync(client, "+213770100002", "ConfirmCust");
+        CustomerDto custA = await CreateCustomerAsync(client, "+14167701002", "ConfirmCust");
         AppointmentDto apptA = await CreateAppointmentAsync(client, custA.Id);
 
         AuthResponseDto authB = await RegisterAsync(client, "iso-appt-confirm-b@test.dev", "Salon B");
@@ -197,7 +197,7 @@ public class CrossTenantIsolationTests : IClassFixture<FlowPilotApiFactory>
     {
         HttpClient client = CreateClient();
         await RegisterAsync(client, "iso-appt-cancel-a@test.dev", "Salon A");
-        CustomerDto custA = await CreateCustomerAsync(client, "+213770100003", "CancelCust");
+        CustomerDto custA = await CreateCustomerAsync(client, "+14167701003", "CancelCust");
         AppointmentDto apptA = await CreateAppointmentAsync(client, custA.Id);
 
         AuthResponseDto authB = await RegisterAsync(client, "iso-appt-cancel-b@test.dev", "Salon B");
@@ -212,7 +212,7 @@ public class CrossTenantIsolationTests : IClassFixture<FlowPilotApiFactory>
     {
         HttpClient client = CreateClient();
         await RegisterAsync(client, "iso-appt-complete-a@test.dev", "Salon A");
-        CustomerDto custA = await CreateCustomerAsync(client, "+213770100004", "CompleteCust");
+        CustomerDto custA = await CreateCustomerAsync(client, "+14167701004", "CompleteCust");
         AppointmentDto apptA = await CreateAppointmentAsync(client, custA.Id);
 
         // Confirm as Tenant A first
@@ -230,7 +230,7 @@ public class CrossTenantIsolationTests : IClassFixture<FlowPilotApiFactory>
     {
         HttpClient client = CreateClient();
         await RegisterAsync(client, "iso-appt-resched-a@test.dev", "Salon A");
-        CustomerDto custA = await CreateCustomerAsync(client, "+213770100005", "ReschedCust");
+        CustomerDto custA = await CreateCustomerAsync(client, "+14167701005", "ReschedCust");
         AppointmentDto apptA = await CreateAppointmentAsync(client, custA.Id);
 
         AuthResponseDto authB = await RegisterAsync(client, "iso-appt-resched-b@test.dev", "Salon B");
@@ -248,7 +248,7 @@ public class CrossTenantIsolationTests : IClassFixture<FlowPilotApiFactory>
     {
         HttpClient client = CreateClient();
         await RegisterAsync(client, "iso-appt-search-a@test.dev", "Salon A");
-        CustomerDto custA = await CreateCustomerAsync(client, "+213770100006", "UniqueApptSearch");
+        CustomerDto custA = await CreateCustomerAsync(client, "+14167701006", "UniqueApptSearch");
         await CreateAppointmentAsync(client, custA.Id);
 
         AuthResponseDto authB = await RegisterAsync(client, "iso-appt-search-b@test.dev", "Salon B");
@@ -268,11 +268,11 @@ public class CrossTenantIsolationTests : IClassFixture<FlowPilotApiFactory>
     {
         HttpClient clientA = CreateClient();
         await RegisterAsync(clientA, "iso-wh-a@test.dev", "Salon A");
-        CustomerDto custA = await CreateCustomerAsync(clientA, "+213770200001", "WHCustA");
+        CustomerDto custA = await CreateCustomerAsync(clientA, "+14167702001", "WHCustA");
 
         HttpClient clientB = CreateClient();
         await RegisterAsync(clientB, "iso-wh-b@test.dev", "Salon B");
-        CustomerDto custB = await CreateCustomerAsync(clientB, "+213770200002", "WHCustB");
+        CustomerDto custB = await CreateCustomerAsync(clientB, "+14167702002", "WHCustB");
 
         DateTime start = DateTime.UtcNow.AddDays(3);
         string sharedExternalId = "ext-shared-001";
@@ -321,7 +321,7 @@ public class CrossTenantIsolationTests : IClassFixture<FlowPilotApiFactory>
     {
         HttpClient client = CreateClient();
         await RegisterAsync(client, "iso-msg-a@test.dev", "Salon A");
-        CustomerDto custA = await CreateCustomerAsync(client, "+213770300001", "MsgCust");
+        CustomerDto custA = await CreateCustomerAsync(client, "+14167703001", "MsgCust");
 
         // Opt in as Tenant A
         await client.PutAsJsonAsync($"{CustomersBase}/{custA.Id}/consent", new

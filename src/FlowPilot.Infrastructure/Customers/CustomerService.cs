@@ -30,7 +30,7 @@ public sealed class CustomerService : ICustomerService
         // Normalize phone to E.164
         string? normalizedPhone = NormalizeToE164(request.Phone);
         if (normalizedPhone is null)
-            return Result.Failure<CustomerDto>(Error.Validation("Customer.InvalidPhone", "Phone number is not valid. Provide a number with country code (e.g. +213555123456)."));
+            return Result.Failure<CustomerDto>(Error.Validation("Customer.InvalidPhone", "Phone number is not valid. Provide a number with country code (e.g. +14165551234)."));
 
         // Check uniqueness within tenant
         bool phoneExists = await _db.Customers
@@ -368,13 +368,13 @@ public sealed class CustomerService : ICustomerService
 
     /// <summary>
     /// Normalizes a phone string to E.164 format. Returns null if invalid.
-    /// Tries parsing with default region "DZ" (Algeria) for local numbers.
+    /// Tries parsing with default region "CA" (Canada) for local numbers.
     /// </summary>
     private static string? NormalizeToE164(string rawPhone)
     {
         try
         {
-            PhoneNumber number = PhoneUtil.Parse(rawPhone, "DZ");
+            PhoneNumber number = PhoneUtil.Parse(rawPhone, "CA");
             if (!PhoneUtil.IsValidNumber(number))
                 return null;
 

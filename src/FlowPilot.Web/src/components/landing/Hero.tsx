@@ -94,7 +94,7 @@ export default function Hero() {
             {/* Status bar */}
             <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <span className="text-[11px] text-ink-faint">FR · Arabic · EN</span>
+                <span className="text-[11px] text-ink-faint">FR · EN</span>
               </div>
               <span className="text-[11px] text-teal font-medium">3 replies handled today</span>
             </div>

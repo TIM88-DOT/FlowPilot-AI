@@ -30,7 +30,7 @@ public sealed class ScheduleSmsTool : IAgentTool
                 "appointmentId": { "type": "string", "format": "uuid", "description": "The related appointment" },
                 "body": { "type": "string", "description": "The SMS text to send" },
                 "sendAt": { "type": "string", "format": "date-time", "description": "When to send the SMS (UTC ISO 8601)" },
-                "locale": { "type": "string", "description": "The language code used (e.g. 'fr', 'ar')" }
+                "locale": { "type": "string", "description": "The language code used (e.g. 'fr', 'en')" }
             },
             "required": ["customerId", "appointmentId", "body", "sendAt"]
         }

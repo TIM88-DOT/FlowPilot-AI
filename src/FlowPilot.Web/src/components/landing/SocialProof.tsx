@@ -1,12 +1,12 @@
 import { useFadeIn } from "../../hooks/useFadeIn";
 
 const businesses = [
-  "Salon Belleza",
-  "Clinique Riadh",
+  "Belleza Salon",
+  "Riverside Clinic",
   "Spa Jasmin",
-  "BarberShop DZ",
+  "North Barber Co.",
   "Centre Dentaire",
-  "Studio Beaute",
+  "Studio Beauté",
 ];
 
 export default function SocialProof() {

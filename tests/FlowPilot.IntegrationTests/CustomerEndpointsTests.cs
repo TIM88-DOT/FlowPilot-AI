@@ -102,11 +102,11 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
         {
             email,
             password = "Test1234!@#",
-            firstName = "Ahmed",
-            lastName = "Benali",
+            firstName = "Alex",
+            lastName = "Tremblay",
             businessName,
-            businessPhone = "+213555123456",
-            timezone = "Africa/Algiers",
+            businessPhone = "+14165551234",
+            timezone = "America/Toronto",
             defaultLanguage = "fr"
         });
 
@@ -117,7 +117,7 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     }
 
     private static object MakeCustomerPayload(
-        string phone = "+213555000001",
+        string phone = "+14165550001",
         string firstName = "Karim",
         string? lastName = "Hadj",
         string? email = "karim@test.dev",
@@ -140,7 +140,7 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     /// Creates a customer and returns the deserialized DTO.
     /// </summary>
     private async Task<CustomerDto> CreateCustomerAsync(
-        string phone = "+213555000001",
+        string phone = "+14165550001",
         string firstName = "Karim",
         string? tags = null)
     {
@@ -182,20 +182,20 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
         await AuthenticateAsync(email: "create-ok@test.dev");
 
         HttpResponseMessage http = await _client.PostAsJsonAsync(CustomersBase, MakeCustomerPayload(
-            phone: "+213555100001",
-            firstName: "Youcef",
-            lastName: "Mansouri",
-            email: "youcef@test.dev",
+            phone: "+14165551001",
+            firstName: "Liam",
+            lastName: "Dubois",
+            email: "liam@test.dev",
             tags: "vip,regular"));
 
         Assert.Equal(HttpStatusCode.Created, http.StatusCode);
 
         CustomerDto? customer = await http.Content.ReadFromJsonAsync<CustomerDto>(JsonOptions);
         Assert.NotNull(customer);
-        Assert.Equal("+213555100001", customer!.Phone);
-        Assert.Equal("Youcef", customer.FirstName);
-        Assert.Equal("Mansouri", customer.LastName);
-        Assert.Equal("youcef@test.dev", customer.Email);
+        Assert.Equal("+14165551001", customer!.Phone);
+        Assert.Equal("Liam", customer.FirstName);
+        Assert.Equal("Dubois", customer.LastName);
+        Assert.Equal("liam@test.dev", customer.Email);
         Assert.Equal("fr", customer.PreferredLanguage);
         Assert.Equal("vip,regular", customer.Tags);
         Assert.Equal("Pending", customer.ConsentStatus);
@@ -207,15 +207,15 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     {
         await AuthenticateAsync(email: "normalize@test.dev");
 
-        // Local Algerian number without country code
+        // Local Canadian number without country code
         HttpResponseMessage http = await _client.PostAsJsonAsync(CustomersBase, MakeCustomerPayload(
-            phone: "0555200001",
-            firstName: "Fatima"));
+            phone: "4165552001",
+            firstName: "Chloe"));
 
         Assert.Equal(HttpStatusCode.Created, http.StatusCode);
 
         CustomerDto? customer = await http.Content.ReadFromJsonAsync<CustomerDto>(JsonOptions);
-        Assert.Equal("+213555200001", customer!.Phone);
+        Assert.Equal("+14165552001", customer!.Phone);
     }
 
     [Fact]
@@ -235,10 +235,10 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     {
         await AuthenticateAsync(email: "dup-phone@test.dev");
 
-        await CreateCustomerAsync(phone: "+213555300001", firstName: "First");
+        await CreateCustomerAsync(phone: "+14165553001", firstName: "First");
 
         HttpResponseMessage http = await _client.PostAsJsonAsync(CustomersBase, MakeCustomerPayload(
-            phone: "+213555300001",
+            phone: "+14165553001",
             firstName: "Second"));
 
         Assert.Equal(HttpStatusCode.Conflict, http.StatusCode);
@@ -249,7 +249,7 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     {
         await AuthenticateAsync(email: "consent-init@test.dev");
 
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213555400001", firstName: "Sara");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14165554001", firstName: "Sara");
 
         HttpResponseMessage http = await _client.GetAsync($"{CustomersBase}/{customer.Id}/history");
         Assert.Equal(HttpStatusCode.OK, http.StatusCode);
@@ -269,7 +269,7 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task GetById_ExistingCustomer_Returns200()
     {
         await AuthenticateAsync(email: "get-ok@test.dev");
-        CustomerDto created = await CreateCustomerAsync(phone: "+213555500001", firstName: "Rami");
+        CustomerDto created = await CreateCustomerAsync(phone: "+14165555001", firstName: "Rami");
 
         HttpResponseMessage http = await _client.GetAsync($"{CustomersBase}/{created.Id}");
 
@@ -298,9 +298,9 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     {
         await AuthenticateAsync(email: "list-ok@test.dev");
 
-        await CreateCustomerAsync(phone: "+213555600001", firstName: "Ali");
-        await CreateCustomerAsync(phone: "+213555600002", firstName: "Omar");
-        await CreateCustomerAsync(phone: "+213555600003", firstName: "Nour");
+        await CreateCustomerAsync(phone: "+14165556001", firstName: "Ali");
+        await CreateCustomerAsync(phone: "+14165556002", firstName: "Omar");
+        await CreateCustomerAsync(phone: "+14165556003", firstName: "Nour");
 
         HttpResponseMessage http = await _client.GetAsync($"{CustomersBase}?page=1&pageSize=2");
 
@@ -319,8 +319,8 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     {
         await AuthenticateAsync(email: "search-name@test.dev");
 
-        await CreateCustomerAsync(phone: "+213555700001", firstName: "Mourad");
-        await CreateCustomerAsync(phone: "+213555700002", firstName: "Samira");
+        await CreateCustomerAsync(phone: "+14165557001", firstName: "Mourad");
+        await CreateCustomerAsync(phone: "+14165557002", firstName: "Samira");
 
         HttpResponseMessage http = await _client.GetAsync($"{CustomersBase}?search=mourad");
 
@@ -335,8 +335,8 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     {
         await AuthenticateAsync(email: "filter-tag@test.dev");
 
-        await CreateCustomerAsync(phone: "+213555800001", firstName: "Amine", tags: "vip,loyal");
-        await CreateCustomerAsync(phone: "+213555800002", firstName: "Nadia", tags: "new");
+        await CreateCustomerAsync(phone: "+14165558001", firstName: "Amine", tags: "vip,loyal");
+        await CreateCustomerAsync(phone: "+14165558002", firstName: "Nadia", tags: "new");
 
         HttpResponseMessage http = await _client.GetAsync($"{CustomersBase}?tag=vip");
 
@@ -351,7 +351,7 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     {
         await AuthenticateAsync(email: "filter-consent@test.dev");
 
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213555900001", firstName: "Hichem");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14165559001", firstName: "Hichem");
 
         // Opt in one customer
         await _client.PutAsJsonAsync($"{CustomersBase}/{customer.Id}/consent", new
@@ -360,7 +360,7 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
             source = "Manual"
         });
 
-        await CreateCustomerAsync(phone: "+213555900002", firstName: "Leila"); // stays Pending
+        await CreateCustomerAsync(phone: "+14165559002", firstName: "Leila"); // stays Pending
 
         HttpResponseMessage http = await _client.GetAsync($"{CustomersBase}?consentStatus=OptedIn");
 
@@ -378,7 +378,7 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Update_PartialFields_Returns200()
     {
         await AuthenticateAsync(email: "update-ok@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213556000001", firstName: "Rachid");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166000001", firstName: "Rachid");
 
         HttpResponseMessage http = await _client.PutAsJsonAsync($"{CustomersBase}/{customer.Id}", new
         {
@@ -397,13 +397,13 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Update_PhoneChange_NormalizesAndChecksUniqueness()
     {
         await AuthenticateAsync(email: "update-phone@test.dev");
-        CustomerDto c1 = await CreateCustomerAsync(phone: "+213556100001", firstName: "A");
-        CustomerDto c2 = await CreateCustomerAsync(phone: "+213556100002", firstName: "B");
+        CustomerDto c1 = await CreateCustomerAsync(phone: "+14166100001", firstName: "A");
+        CustomerDto c2 = await CreateCustomerAsync(phone: "+14166100002", firstName: "B");
 
         // Try to change c2's phone to c1's phone — should fail
         HttpResponseMessage http = await _client.PutAsJsonAsync($"{CustomersBase}/{c2.Id}", new
         {
-            phone = "+213556100001"
+            phone = "+14166100001"
         });
 
         Assert.Equal(HttpStatusCode.Conflict, http.StatusCode);
@@ -430,7 +430,7 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Delete_AnonymizesAndSoftDeletes()
     {
         await AuthenticateAsync(email: "delete-ok@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213556200001", firstName: "ToDelete");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166200001", firstName: "ToDelete");
 
         HttpResponseMessage deleteHttp = await _client.DeleteAsync($"{CustomersBase}/{customer.Id}");
         Assert.Equal(HttpStatusCode.OK, deleteHttp.StatusCode);
@@ -445,8 +445,8 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     {
         await AuthenticateAsync(email: "delete-list@test.dev");
 
-        await CreateCustomerAsync(phone: "+213556300001", firstName: "Visible");
-        CustomerDto toDelete = await CreateCustomerAsync(phone: "+213556300002", firstName: "Hidden");
+        await CreateCustomerAsync(phone: "+14166300001", firstName: "Visible");
+        CustomerDto toDelete = await CreateCustomerAsync(phone: "+14166300002", firstName: "Hidden");
 
         await _client.DeleteAsync($"{CustomersBase}/{toDelete.Id}");
 
@@ -474,7 +474,7 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task UpdateConsent_ChangesStatusAndAppendsRecord()
     {
         await AuthenticateAsync(email: "consent-ok@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213556400001", firstName: "Consent");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166400001", firstName: "Consent");
 
         // Opt in
         HttpResponseMessage optInHttp = await _client.PutAsJsonAsync(
@@ -524,8 +524,8 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
         await AuthenticateAsync(email: "csv-ok@test.dev");
 
         string csv = "phone,firstname,lastname,email,language,tags\n" +
-                      "+213555110001,Ali,Kaci,ali@test.dev,fr,vip\n" +
-                      "0555110002,Nadia,Boua,,ar,\n";
+                      "+14165511001,Ali,Kaci,ali@test.dev,fr,vip\n" +
+                      "4165511002,Nadia,Boua,,en,\n";
 
         using var content = new MultipartFormDataContent();
         content.Add(new StreamContent(new MemoryStream(Encoding.UTF8.GetBytes(csv))), "file", "customers.csv");
@@ -546,7 +546,7 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
         Assert.Equal(2, customers!.TotalCount);
 
         // The local number should be normalized
-        Assert.Contains(customers.Items, c => c.Phone == "+213555110002");
+        Assert.Contains(customers.Items, c => c.Phone == "+14165511002");
     }
 
     [Fact]
@@ -555,11 +555,11 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
         await AuthenticateAsync(email: "csv-skip@test.dev");
 
         // Pre-create a customer
-        await CreateCustomerAsync(phone: "+213555120001", firstName: "Existing");
+        await CreateCustomerAsync(phone: "+14165512001", firstName: "Existing");
 
         string csv = "phone,firstname\n" +
-                      "+213555120001,Duplicate\n" +
-                      "+213555120002,New\n";
+                      "+14165512001,Duplicate\n" +
+                      "+14165512002,New\n";
 
         using var content = new MultipartFormDataContent();
         content.Add(new StreamContent(new MemoryStream(Encoding.UTF8.GetBytes(csv))), "file", "customers.csv");
@@ -579,7 +579,7 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
 
         string csv = "phone,firstname\n" +
                       "not-a-number,BadPhone\n" +
-                      "+213555130001,GoodPhone\n";
+                      "+14165513001,GoodPhone\n";
 
         using var content = new MultipartFormDataContent();
         content.Add(new StreamContent(new MemoryStream(Encoding.UTF8.GetBytes(csv))), "file", "customers.csv");
@@ -615,8 +615,8 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
         await AuthenticateAsync(email: "csv-consent@test.dev");
 
         string csv = "phone,firstname\n" +
-                      "+213555140001,Ahmed\n" +
-                      "+213555140002,Fatima\n";
+                      "+14165514001,Ahmed\n" +
+                      "+14165514002,Fatima\n";
 
         using var content = new MultipartFormDataContent();
         content.Add(new StreamContent(new MemoryStream(Encoding.UTF8.GetBytes(csv))), "file", "customers.csv");
@@ -651,7 +651,7 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
         clientA.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authA!.AccessToken);
 
         HttpResponseMessage createHttp = await clientA.PostAsJsonAsync(CustomersBase, MakeCustomerPayload(
-            phone: "+213557000001", firstName: "TenantA-Customer"));
+            phone: "+14167000001", firstName: "TenantA-Customer"));
         Assert.Equal(HttpStatusCode.Created, createHttp.StatusCode);
 
         // Tenant B registers and lists customers — should see zero
@@ -687,7 +687,7 @@ public class CustomerEndpointsTests : IClassFixture<FlowPilotApiFactory>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authA!.AccessToken);
 
         HttpResponseMessage createHttp = await client.PostAsJsonAsync(CustomersBase, MakeCustomerPayload(
-            phone: "+213557100001", firstName: "Secret"));
+            phone: "+14167100001", firstName: "Secret"));
         CustomerDto? customerA = await createHttp.Content.ReadFromJsonAsync<CustomerDto>(JsonOptions);
 
         // Switch to Tenant B

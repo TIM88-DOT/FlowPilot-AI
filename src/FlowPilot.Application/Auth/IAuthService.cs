@@ -9,7 +9,7 @@ public interface IAuthService
 {
     /// <summary>
     /// Registers a new tenant with an Owner user, default Plan, default TenantSettings,
-    /// and seeds system templates with fr + ar locale variants.
+    /// and seeds system templates with fr + en locale variants.
     /// </summary>
     Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default);
 

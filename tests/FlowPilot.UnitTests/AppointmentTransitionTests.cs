@@ -37,7 +37,7 @@ public sealed class AppointmentTransitionTests : IDisposable
         {
             Id = Guid.NewGuid(),
             TenantId = _fixture.TenantId,
-            Phone = "+213555000001",
+            Phone = "+14165550001",
             FirstName = "Test",
             ConsentStatus = ConsentStatus.OptedIn
         };

@@ -54,8 +54,8 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
         HttpResponseMessage http = await _client.PostAsJsonAsync($"{AuthBase}/register", new
         {
             email, password = "Test1234!@#",
-            firstName = "Ahmed", lastName = "Benali", businessName = "Salon Prestige",
-            businessPhone = "+213555123456", timezone = "Africa/Algiers", defaultLanguage = "fr"
+            firstName = "Alex", lastName = "Tremblay", businessName = "Salon Prestige",
+            businessPhone = "+14165551234", timezone = "America/Toronto", defaultLanguage = "fr"
         });
         Assert.Equal(HttpStatusCode.Created, http.StatusCode);
         AuthResponseDto? auth = await http.Content.ReadFromJsonAsync<AuthResponseDto>(JsonOptions);
@@ -67,7 +67,7 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
     {
         HttpResponseMessage http = await _client.PostAsJsonAsync(CustomersBase, new
         {
-            phone, firstName, lastName = "Hadj", consentSource = "Manual"
+            phone, firstName, lastName = "Lavoie", consentSource = "Manual"
         });
         Assert.Equal(HttpStatusCode.Created, http.StatusCode);
         return (await http.Content.ReadFromJsonAsync<CustomerDto>(JsonOptions))!;
@@ -101,7 +101,7 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task SendTemplated_PendingConsent_Returns403()
     {
         await AuthenticateAsync(email: "consent-pending@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213670000001");
+        CustomerDto customer = await CreateCustomerAsync("+14165550001");
         Guid templateId = await GetReminderTemplateIdAsync();
 
         HttpResponseMessage http = await _client.PostAsJsonAsync($"{MessagingBase}/send", new
@@ -123,7 +123,7 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task SendTemplated_OptedOut_Returns403()
     {
         await AuthenticateAsync(email: "consent-out@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213670000002");
+        CustomerDto customer = await CreateCustomerAsync("+14165550002");
 
         // Opt in then out
         await OptInCustomerAsync(customer.Id);
@@ -151,7 +151,7 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task SendTemplated_OptedIn_Returns200WithRenderedBody()
     {
         await AuthenticateAsync(email: "send-ok@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213670000003");
+        CustomerDto customer = await CreateCustomerAsync("+14165550003");
         await OptInCustomerAsync(customer.Id);
         Guid templateId = await GetReminderTemplateIdAsync();
 
@@ -186,7 +186,7 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task SendRaw_OptedIn_Returns200()
     {
         await AuthenticateAsync(email: "send-raw@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213670000004");
+        CustomerDto customer = await CreateCustomerAsync("+14165550004");
         await OptInCustomerAsync(customer.Id);
 
         HttpResponseMessage http = await _client.PostAsJsonAsync($"{MessagingBase}/send-raw", new
@@ -204,7 +204,7 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task SendRaw_PendingConsent_Returns403()
     {
         await AuthenticateAsync(email: "raw-pending@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213670000005");
+        CustomerDto customer = await CreateCustomerAsync("+14165550005");
 
         HttpResponseMessage http = await _client.PostAsJsonAsync($"{MessagingBase}/send-raw", new
         {
@@ -223,12 +223,12 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task InboundSms_ValidMessage_Returns200()
     {
         await AuthenticateAsync(email: "inbound-ok@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213670000006");
+        CustomerDto customer = await CreateCustomerAsync("+14165550006");
 
         HttpResponseMessage http = await _client.PostAsJsonAsync($"{WebhooksBase}/sms/inbound", new
         {
             providerSmsSid = "SM_inbound_001",
-            fromPhone = "+213670000006",
+            fromPhone = "+14165550006",
             toPhone = "+10000000000",
             body = "Oui je confirme"
         });
@@ -240,12 +240,12 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task InboundSms_DuplicateSmsSid_IsIdempotent()
     {
         await AuthenticateAsync(email: "inbound-dup@test.dev");
-        await CreateCustomerAsync("+213670000007");
+        await CreateCustomerAsync("+14165550007");
 
         object payload = new
         {
             providerSmsSid = "SM_dup_001",
-            fromPhone = "+213670000007",
+            fromPhone = "+14165550007",
             toPhone = "+10000000000",
             body = "Hello"
         };
@@ -265,14 +265,14 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task InboundSms_StopKeyword_OptsOutCustomer()
     {
         await AuthenticateAsync(email: "stop@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213670000008");
+        CustomerDto customer = await CreateCustomerAsync("+14165550008");
         await OptInCustomerAsync(customer.Id);
 
         // Send STOP
         await _client.PostAsJsonAsync($"{WebhooksBase}/sms/inbound", new
         {
             providerSmsSid = "SM_stop_001",
-            fromPhone = "+213670000008",
+            fromPhone = "+14165550008",
             toPhone = "+10000000000",
             body = "STOP"
         });
@@ -301,7 +301,7 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
 
         for (int i = 0; i < keywords.Length; i++)
         {
-            string phone = $"+2136700100{i:D2}";
+            string phone = $"+141655501{i:D2}";
             CustomerDto customer = await CreateCustomerAsync(phone, $"User{i}");
             await OptInCustomerAsync(customer.Id);
 
@@ -327,7 +327,7 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task DeliveryStatus_UpdatesMessageStatus()
     {
         await AuthenticateAsync(email: "delivery@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213670000009");
+        CustomerDto customer = await CreateCustomerAsync("+14165550009");
         await OptInCustomerAsync(customer.Id);
 
         // Send an SMS to get a ProviderMessageId
@@ -378,7 +378,7 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
             localeVariants = new[]
             {
                 new { locale = "fr", body = "Bonjour {{customer_name}}, profitez de -20% cette semaine !" },
-                new { locale = "ar", body = "مرحباً {{customer_name}}، استفد من خصم 20% هذا الأسبوع!" }
+                new { locale = "en", body = "Hi {{customer_name}}, enjoy -20% this week!" }
             }
         });
 
@@ -478,10 +478,10 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
         });
         TemplateDto? created = await createHttp.Content.ReadFromJsonAsync<TemplateDto>(JsonOptions);
 
-        // Add Arabic variant
+        // Add English variant
         HttpResponseMessage upsertHttp = await _client.PutAsJsonAsync($"{TemplatesBase}/{created!.Id}/variants", new
         {
-            locale = "ar", body = "Arabic text"
+            locale = "en", body = "English text"
         });
 
         Assert.Equal(HttpStatusCode.OK, upsertHttp.StatusCode);
@@ -523,12 +523,12 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
             localeVariants = new[]
             {
                 new { locale = "fr", body = "French" },
-                new { locale = "ar", body = "Arabic" }
+                new { locale = "en", body = "English" }
             }
         });
         TemplateDto? created = await createHttp.Content.ReadFromJsonAsync<TemplateDto>(JsonOptions);
 
-        HttpResponseMessage delHttp = await _client.DeleteAsync($"{TemplatesBase}/{created!.Id}/variants/ar");
+        HttpResponseMessage delHttp = await _client.DeleteAsync($"{TemplatesBase}/{created!.Id}/variants/en");
         Assert.Equal(HttpStatusCode.OK, delHttp.StatusCode);
 
         // Verify only French remains
@@ -547,12 +547,12 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
     {
         await AuthenticateAsync(email: "locale-match@test.dev");
 
-        // Create customer with Arabic preference
+        // Create customer with English preference
         HttpResponseMessage custHttp = await _client.PostAsJsonAsync(CustomersBase, new
         {
-            phone = "+213670000020",
-            firstName = "فاطمة",
-            preferredLanguage = "ar",
+            phone = "+14165550020",
+            firstName = "Emily",
+            preferredLanguage = "en",
             consentSource = "Manual"
         });
         CustomerDto? customer = await custHttp.Content.ReadFromJsonAsync<CustomerDto>(JsonOptions);
@@ -566,16 +566,16 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
             templateId,
             variables = new Dictionary<string, string>
             {
-                ["customer_name"] = "فاطمة",
-                ["appointment_date"] = "01/04/2026",
+                ["customer_name"] = "Emily",
+                ["appointment_date"] = "2026-04-01",
                 ["appointment_time"] = "14:00"
             }
         });
 
         Assert.Equal(HttpStatusCode.OK, sendHttp.StatusCode);
         SendSmsResponseDto? result = await sendHttp.Content.ReadFromJsonAsync<SendSmsResponseDto>(JsonOptions);
-        // Arabic template contains "مرحباً" (hello in Arabic)
-        Assert.Contains("مرحباً", result!.RenderedBody);
-        Assert.Contains("فاطمة", result.RenderedBody);
+        // English reminder template starts with "Hi"
+        Assert.Contains("Hi", result!.RenderedBody);
+        Assert.Contains("Emily", result.RenderedBody);
     }
 }

@@ -55,11 +55,11 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
         {
             email,
             password = "Test1234!@#",
-            firstName = "Ahmed",
-            lastName = "Benali",
+            firstName = "Alex",
+            lastName = "Tremblay",
             businessName = "Salon Prestige",
-            businessPhone = "+213555123456",
-            timezone = "Africa/Algiers",
+            businessPhone = "+14165551234",
+            timezone = "America/Toronto",
             defaultLanguage = "fr"
         });
 
@@ -69,13 +69,13 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
         return auth;
     }
 
-    private async Task<CustomerDto> CreateCustomerAsync(string phone = "+213555000001", string firstName = "Karim")
+    private async Task<CustomerDto> CreateCustomerAsync(string phone = "+14165550001", string firstName = "Karim")
     {
         HttpResponseMessage http = await _client.PostAsJsonAsync(CustomersBase, new
         {
             phone,
             firstName,
-            lastName = "Hadj",
+            lastName = "Lavoie",
             email = $"{firstName.ToLower()}@test.dev",
             preferredLanguage = "fr",
             consentSource = "Manual"
@@ -127,7 +127,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Create_ValidRequest_Returns201WithScheduledStatus()
     {
         await AuthenticateAsync(email: "create-appt@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661000001", firstName: "Rami");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166100001", firstName: "Rami");
 
         DateTime start = DateTime.UtcNow.AddDays(2);
         HttpResponseMessage http = await _client.PostAsJsonAsync(AppointmentsBase, new
@@ -169,7 +169,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Create_EndBeforeStart_Returns400()
     {
         await AuthenticateAsync(email: "create-bad-time@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661000002", firstName: "Ali");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166100002", firstName: "Ali");
 
         DateTime start = DateTime.UtcNow.AddDays(1);
         HttpResponseMessage http = await _client.PostAsJsonAsync(AppointmentsBase, new
@@ -190,7 +190,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task GetById_Existing_Returns200()
     {
         await AuthenticateAsync(email: "get-appt@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661000003", firstName: "Sara");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166100003", firstName: "Sara");
         AppointmentDto created = await CreateAppointmentAsync(customer.Id);
 
         HttpResponseMessage http = await _client.GetAsync($"{AppointmentsBase}/{created.Id}");
@@ -217,7 +217,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task List_FilterByStatus_ReturnsMatching()
     {
         await AuthenticateAsync(email: "list-status@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661000004", firstName: "Omar");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166100004", firstName: "Omar");
 
         AppointmentDto a1 = await CreateAppointmentAsync(customer.Id);
         AppointmentDto a2 = await CreateAppointmentAsync(customer.Id);
@@ -235,8 +235,8 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task List_FilterByCustomerId_ReturnsMatching()
     {
         await AuthenticateAsync(email: "list-cust@test.dev");
-        CustomerDto c1 = await CreateCustomerAsync(phone: "+213661000005", firstName: "A");
-        CustomerDto c2 = await CreateCustomerAsync(phone: "+213661000006", firstName: "B");
+        CustomerDto c1 = await CreateCustomerAsync(phone: "+14166100005", firstName: "A");
+        CustomerDto c2 = await CreateCustomerAsync(phone: "+14166100006", firstName: "B");
 
         await CreateAppointmentAsync(c1.Id);
         await CreateAppointmentAsync(c2.Id);
@@ -251,7 +251,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task List_FilterByDateRange_ReturnsMatching()
     {
         await AuthenticateAsync(email: "list-date@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661000007", firstName: "Nour");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166100007", firstName: "Nour");
 
         DateTime tomorrow = DateTime.UtcNow.Date.AddDays(1);
         DateTime nextWeek = DateTime.UtcNow.Date.AddDays(7);
@@ -274,7 +274,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Confirm_FromScheduled_Succeeds()
     {
         await AuthenticateAsync(email: "confirm@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661100001", firstName: "T1");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166110001", firstName: "T1");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         HttpResponseMessage http = await _client.PostAsync($"{AppointmentsBase}/{appt.Id}/confirm", null);
@@ -288,7 +288,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Complete_FromConfirmed_Succeeds()
     {
         await AuthenticateAsync(email: "complete@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661100002", firstName: "T2");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166110002", firstName: "T2");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         await _client.PostAsync($"{AppointmentsBase}/{appt.Id}/confirm", null);
@@ -303,7 +303,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Cancel_FromScheduled_Succeeds()
     {
         await AuthenticateAsync(email: "cancel@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661100003", firstName: "T3");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166110003", firstName: "T3");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         HttpResponseMessage http = await _client.PostAsync($"{AppointmentsBase}/{appt.Id}/cancel", null);
@@ -317,7 +317,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Cancel_FromConfirmed_Succeeds()
     {
         await AuthenticateAsync(email: "cancel-confirmed@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661100004", firstName: "T4");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166110004", firstName: "T4");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         await _client.PostAsync($"{AppointmentsBase}/{appt.Id}/confirm", null);
@@ -336,7 +336,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Complete_FromScheduled_Returns400()
     {
         await AuthenticateAsync(email: "bad-complete@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661200001", firstName: "T5");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166120001", firstName: "T5");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         // Scheduled → Completed is NOT valid (must go through Confirmed first)
@@ -349,7 +349,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Confirm_FromCancelled_Returns400()
     {
         await AuthenticateAsync(email: "bad-confirm@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661200002", firstName: "T6");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166120002", firstName: "T6");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         await _client.PostAsync($"{AppointmentsBase}/{appt.Id}/cancel", null);
@@ -364,7 +364,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Cancel_FromCompleted_Returns400()
     {
         await AuthenticateAsync(email: "bad-cancel@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661200003", firstName: "T7");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166120003", firstName: "T7");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         await _client.PostAsync($"{AppointmentsBase}/{appt.Id}/confirm", null);
@@ -384,7 +384,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Reschedule_FromScheduled_CreatesNewAppointment()
     {
         await AuthenticateAsync(email: "reschedule@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661300001", firstName: "T8");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166130001", firstName: "T8");
         AppointmentDto original = await CreateAppointmentAsync(customer.Id);
 
         DateTime newStart = DateTime.UtcNow.AddDays(5);
@@ -410,7 +410,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Reschedule_FromCancelled_Returns400()
     {
         await AuthenticateAsync(email: "reschedule-bad@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661300002", firstName: "T9");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166130002", firstName: "T9");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         await _client.PostAsync($"{AppointmentsBase}/{appt.Id}/cancel", null);
@@ -431,7 +431,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Webhook_FirstIngestion_CreatesAppointment()
     {
         await AuthenticateAsync(email: "webhook-ok@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661400001", firstName: "Webhook");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166140001", firstName: "Webhook");
 
         DateTime start = DateTime.UtcNow.AddDays(3);
         HttpResponseMessage http = await _client.PostAsJsonAsync("/api/webhooks/appointments/inbound", new
@@ -453,7 +453,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Webhook_DuplicateExternalId_ReturnsExistingWithoutDuplicate()
     {
         await AuthenticateAsync(email: "webhook-dup@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661400002", firstName: "WH-Dup");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166140002", firstName: "WH-Dup");
 
         DateTime start = DateTime.UtcNow.AddDays(3);
         object payload = new
@@ -490,7 +490,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task StatusChange_CreatesAuditLogEntry()
     {
         await AuthenticateAsync(email: "audit@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661500001", firstName: "Audit");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166150001", firstName: "Audit");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         // Confirm → this triggers AppointmentStatusChangedEvent → AuditLog handler
@@ -526,7 +526,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
 
         CustomerDto custA = (await (await client.PostAsJsonAsync(CustomersBase, new
         {
-            phone = "+213662000001", firstName = "CustA", consentSource = "Manual"
+            phone = "+14166200001", firstName = "CustA", consentSource = "Manual"
         })).Content.ReadFromJsonAsync<CustomerDto>(JsonOptions))!;
 
         DateTime start = DateTime.UtcNow.AddDays(1);
@@ -558,7 +558,7 @@ public class AppointmentEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task FullLifecycle_Scheduled_Confirmed_Completed()
     {
         await AuthenticateAsync(email: "lifecycle@test.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661600001", firstName: "Life");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166160001", firstName: "Life");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         Assert.Equal("Scheduled", appt.Status);

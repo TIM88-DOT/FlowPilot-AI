@@ -53,11 +53,11 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
         {
             email,
             password = "Test1234!@#",
-            firstName = "Fatima",
-            lastName = "Rahal",
-            businessName = "Salon Fatima",
-            businessPhone = "+213555999001",
-            timezone = "Africa/Algiers",
+            firstName = "Emma",
+            lastName = "Lavoie",
+            businessName = "Salon Lavoie",
+            businessPhone = "+14165559001",
+            timezone = "America/Toronto",
             defaultLanguage = "fr"
         });
 
@@ -67,7 +67,7 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
         return auth;
     }
 
-    private async Task<CustomerDto> CreateCustomerAsync(string phone = "+213555000100", string firstName = "Amina", string language = "fr")
+    private async Task<CustomerDto> CreateCustomerAsync(string phone = "+14165550100", string firstName = "Emma", string language = "fr")
     {
         HttpResponseMessage http = await _client.PostAsJsonAsync(CustomersBase, new
         {
@@ -109,7 +109,7 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
         // The ReminderOptimizationAgent should fire but the orchestrator should fail gracefully
         // with a descriptive error — not crash the appointment creation.
         await AuthenticateAsync(email: "agent-trigger@salon.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661100001", firstName: "Nora");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166110001", firstName: "Nora");
 
         // This should succeed even though the agent will fail internally
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
@@ -125,7 +125,7 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
         // ReviewRecoveryAgent fires when an appointment transitions to Completed.
         // It should fail gracefully without blocking the status transition.
         await AuthenticateAsync(email: "review-trigger@salon.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661100002", firstName: "Leila");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166110002", firstName: "Leila");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         // Confirm first
@@ -148,7 +148,7 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
     public async Task FullLifecycle_WithAgentsWired_AllTransitionsSucceed()
     {
         await AuthenticateAsync(email: "lifecycle-agent@salon.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661100003", firstName: "Yasmine");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166110003", firstName: "Yasmine");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id, serviceName: "Brushing");
 
         Assert.Equal("Scheduled", appt.Status);
@@ -170,7 +170,7 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
     public async Task InvalidTransition_WithAgentsWired_StillReturns400()
     {
         await AuthenticateAsync(email: "invalid-transition-agent@salon.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661100004", firstName: "Sara");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166110004", firstName: "Sara");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         // Scheduled → Completed is invalid (must confirm first)
@@ -186,8 +186,8 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
     public async Task MultipleAppointments_EachTriggersAgent_NoCrossContamination()
     {
         await AuthenticateAsync(email: "multi-agent@salon.dev");
-        CustomerDto customer1 = await CreateCustomerAsync(phone: "+213661100005", firstName: "Rania");
-        CustomerDto customer2 = await CreateCustomerAsync(phone: "+213661100006", firstName: "Dina");
+        CustomerDto customer1 = await CreateCustomerAsync(phone: "+14166110005", firstName: "Rania");
+        CustomerDto customer2 = await CreateCustomerAsync(phone: "+14166110006", firstName: "Dina");
 
         AppointmentDto appt1 = await CreateAppointmentAsync(customer1.Id, serviceName: "Coupe");
         AppointmentDto appt2 = await CreateAppointmentAsync(customer2.Id, serviceName: "Coloration");
@@ -208,7 +208,7 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Reschedule_CreatesNewAppointment_TriggersAgentForNew()
     {
         await AuthenticateAsync(email: "reschedule-agent@salon.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661100007", firstName: "Hiba");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166110007", firstName: "Hiba");
         AppointmentDto original = await CreateAppointmentAsync(customer.Id);
 
         DateTime newStart = DateTime.UtcNow.AddDays(5);
@@ -236,7 +236,7 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
     {
         // Tenant A creates customer + appointment
         AuthResponseDto authA = await AuthenticateAsync(email: "tenantA-agent@salon.dev");
-        CustomerDto customerA = await CreateCustomerAsync(phone: "+213661200001", firstName: "Meriem");
+        CustomerDto customerA = await CreateCustomerAsync(phone: "+14166120001", firstName: "Meriem");
         AppointmentDto apptA = await CreateAppointmentAsync(customerA.Id);
 
         // Tenant B
@@ -251,12 +251,12 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
         {
             email = "tenantB-agent@salon.dev",
             password = "Test1234!@#",
-            firstName = "Omar",
-            lastName = "Khalil",
-            businessName = "Barbershop Omar",
-            businessPhone = "+213555888001",
-            timezone = "Africa/Algiers",
-            defaultLanguage = "ar"
+            firstName = "Alex",
+            lastName = "Tremblay",
+            businessName = "Barbershop Alex",
+            businessPhone = "+14165558801",
+            timezone = "America/Toronto",
+            defaultLanguage = "en"
         });
         Assert.Equal(HttpStatusCode.Created, regHttp.StatusCode);
         AuthResponseDto? authB = await regHttp.Content.ReadFromJsonAsync<AuthResponseDto>(JsonOptions);
@@ -281,7 +281,7 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
     public async Task WebhookIngestion_WithAgents_IdempotencyPreserved()
     {
         await AuthenticateAsync(email: "webhook-agent@salon.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661200002", firstName: "Kenza");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166120002", firstName: "Kenza");
 
         DateTime start = DateTime.UtcNow.AddDays(3);
         var webhook = new
@@ -318,7 +318,7 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
         await AuthenticateAsync(email: "consent-agent@salon.dev");
 
         // Create customer (auto opted-in)
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661200003", firstName: "Salma");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166120003", firstName: "Salma");
 
         // Opt the customer out
         HttpResponseMessage optOutHttp = await _client.PutAsJsonAsync($"{CustomersBase}/{customer.Id}/consent", new
@@ -345,7 +345,7 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
     public async Task Cancel_AfterAgentTrigger_Succeeds()
     {
         await AuthenticateAsync(email: "cancel-agent@salon.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661200004", firstName: "Lina");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166120004", firstName: "Lina");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         // Cancel the appointment — the agent may have already fired but cancel should still work
@@ -359,7 +359,7 @@ public class AgentToolsTests : IClassFixture<FlowPilotApiFactory>
     public async Task CancelThenConfirm_InvalidTransition_Returns400()
     {
         await AuthenticateAsync(email: "cancel-confirm-agent@salon.dev");
-        CustomerDto customer = await CreateCustomerAsync(phone: "+213661200005", firstName: "Ines");
+        CustomerDto customer = await CreateCustomerAsync(phone: "+14166120005", firstName: "Ines");
         AppointmentDto appt = await CreateAppointmentAsync(customer.Id);
 
         // Cancel

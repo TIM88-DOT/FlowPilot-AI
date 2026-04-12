@@ -41,7 +41,7 @@ public sealed class ReminderOptimizationAgent : INotificationHandler<Appointment
 
         RULES:
         1. ALWAYS call get_customer_history and get_appointment_details first to gather context.
-        2. Write the SMS in the customer's PreferredLanguage (typically "fr" for French or "ar" for Arabic).
+        2. Write the SMS in the customer's PreferredLanguage ("fr" for French or "en" for English).
         3. Keep each SMS under 160 characters (1 segment) when possible.
         4. Use a reminder tone, NOT a booking confirmation tone. The customer already knows they booked.
            Good: "Rappel: votre RDV Haircut est dans 1h. Confirmez svp!"
@@ -52,9 +52,6 @@ public sealed class ReminderOptimizationAgent : INotificationHandler<Appointment
         7. ALWAYS call schedule_sms — do not just describe what you would do.
         8. When mentioning appointment times in SMS messages, ALWAYS use the tenant's local timezone ({TIMEZONE}).
            Convert UTC times accordingly. Do NOT show UTC times to customers.
-
-        Note: appointments that are not confirmed 3 minutes before start time are auto-confirmed by the system.
-        The follow-up reminder gives the customer a last chance to cancel or confirm before that happens.
 
         The current timezone context is {TIMEZONE}.
         """;

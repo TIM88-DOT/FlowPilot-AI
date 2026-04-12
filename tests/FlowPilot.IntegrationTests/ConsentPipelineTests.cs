@@ -56,7 +56,7 @@ public class ConsentPipelineTests : IClassFixture<FlowPilotApiFactory>
         {
             email, password = "Test1234!@#",
             firstName = "Owner", lastName = "Test", businessName = "Salon Test",
-            businessPhone = "+213555000000", timezone = "Africa/Algiers", defaultLanguage = "fr"
+            businessPhone = "+14165550000", timezone = "America/Toronto", defaultLanguage = "fr"
         });
         Assert.Equal(HttpStatusCode.Created, http.StatusCode);
         AuthResponseDto? auth = await http.Content.ReadFromJsonAsync<AuthResponseDto>(JsonOptions);
@@ -96,7 +96,7 @@ public class ConsentPipelineTests : IClassFixture<FlowPilotApiFactory>
     public async Task FullPipeline_OptIn_Send_StopKeyword_Blocked_ReOptIn_SendAgain()
     {
         await AuthenticateAsync("consent-full@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213780000001", "FullPipeline");
+        CustomerDto customer = await CreateCustomerAsync("+14167800001", "FullPipeline");
         Guid templateId = await GetReminderTemplateIdAsync();
 
         var variables = new Dictionary<string, string>
@@ -134,7 +134,7 @@ public class ConsentPipelineTests : IClassFixture<FlowPilotApiFactory>
         await _client.PostAsJsonAsync($"{WebhooksBase}/sms/inbound", new
         {
             providerSmsSid = "SM_pipeline_stop_001",
-            fromPhone = "+213780000001",
+            fromPhone = "+14167800001",
             toPhone = "+10000000000",
             body = "STOP"
         });
@@ -173,7 +173,7 @@ public class ConsentPipelineTests : IClassFixture<FlowPilotApiFactory>
     public async Task ConsentChanges_AreTrackedInHistory()
     {
         await AuthenticateAsync("consent-history@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213780000002", "HistoryCheck");
+        CustomerDto customer = await CreateCustomerAsync("+14167800002", "HistoryCheck");
 
         // Opt in
         await _client.PutAsJsonAsync($"{CustomersBase}/{customer.Id}/consent", new
@@ -208,7 +208,7 @@ public class ConsentPipelineTests : IClassFixture<FlowPilotApiFactory>
     public async Task SendRaw_PendingConsent_Returns403()
     {
         await AuthenticateAsync("consent-raw-pending@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213780000003", "RawPending");
+        CustomerDto customer = await CreateCustomerAsync("+14167800003", "RawPending");
 
         HttpResponseMessage http = await _client.PostAsJsonAsync($"{MessagingBase}/send-raw", new
         {
@@ -222,7 +222,7 @@ public class ConsentPipelineTests : IClassFixture<FlowPilotApiFactory>
     public async Task SendRaw_OptedIn_Succeeds()
     {
         await AuthenticateAsync("consent-raw-optin@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213780000004", "RawOptedIn");
+        CustomerDto customer = await CreateCustomerAsync("+14167800004", "RawOptedIn");
 
         await _client.PutAsJsonAsync($"{CustomersBase}/{customer.Id}/consent", new
         {
@@ -245,7 +245,7 @@ public class ConsentPipelineTests : IClassFixture<FlowPilotApiFactory>
     public async Task StopKeyword_WithExtraWhitespace_StillOptsOut()
     {
         await AuthenticateAsync("consent-stop-ws@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213780000005", "WhitespaceStop");
+        CustomerDto customer = await CreateCustomerAsync("+14167800005", "WhitespaceStop");
 
         await _client.PutAsJsonAsync($"{CustomersBase}/{customer.Id}/consent", new
         {
@@ -255,7 +255,7 @@ public class ConsentPipelineTests : IClassFixture<FlowPilotApiFactory>
         await _client.PostAsJsonAsync($"{WebhooksBase}/sms/inbound", new
         {
             providerSmsSid = "SM_ws_stop_001",
-            fromPhone = "+213780000005",
+            fromPhone = "+14167800005",
             toPhone = "+10000000000",
             body = "  STOP  "
         });
@@ -268,7 +268,7 @@ public class ConsentPipelineTests : IClassFixture<FlowPilotApiFactory>
     public async Task StopKeyword_MixedCase_StillOptsOut()
     {
         await AuthenticateAsync("consent-stop-case@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213780000006", "MixedCaseStop");
+        CustomerDto customer = await CreateCustomerAsync("+14167800006", "MixedCaseStop");
 
         await _client.PutAsJsonAsync($"{CustomersBase}/{customer.Id}/consent", new
         {
@@ -278,7 +278,7 @@ public class ConsentPipelineTests : IClassFixture<FlowPilotApiFactory>
         await _client.PostAsJsonAsync($"{WebhooksBase}/sms/inbound", new
         {
             providerSmsSid = "SM_mixed_stop_001",
-            fromPhone = "+213780000006",
+            fromPhone = "+14167800006",
             toPhone = "+10000000000",
             body = "sToP"
         });
@@ -291,7 +291,7 @@ public class ConsentPipelineTests : IClassFixture<FlowPilotApiFactory>
     public async Task NonStopMessage_DoesNotOptOut()
     {
         await AuthenticateAsync("consent-non-stop@test.dev");
-        CustomerDto customer = await CreateCustomerAsync("+213780000007", "NonStopMsg");
+        CustomerDto customer = await CreateCustomerAsync("+14167800007", "NonStopMsg");
 
         await _client.PutAsJsonAsync($"{CustomersBase}/{customer.Id}/consent", new
         {
@@ -301,7 +301,7 @@ public class ConsentPipelineTests : IClassFixture<FlowPilotApiFactory>
         await _client.PostAsJsonAsync($"{WebhooksBase}/sms/inbound", new
         {
             providerSmsSid = "SM_normal_001",
-            fromPhone = "+213780000007",
+            fromPhone = "+14167800007",
             toPhone = "+10000000000",
             body = "OUI, I confirm my appointment"
         });
