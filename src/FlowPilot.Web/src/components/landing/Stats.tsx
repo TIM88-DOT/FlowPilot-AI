@@ -13,27 +13,30 @@ export default function Stats() {
   return (
     <section
       ref={ref}
-      className={`py-24 px-6 fade-in-section ${visible ? "is-visible" : ""}`}
+      className={`py-24 px-6 md:px-8 fade-in-section ${visible ? "is-visible" : ""}`}
     >
-      <div className="max-w-5xl mx-auto">
-        <div className="rounded-[20px] bg-ink p-10 sm:p-14">
+      <div className="max-w-[1200px] mx-auto">
+        <div className="rounded-3xl border border-[rgba(0,0,0,0.05)] bg-white p-10 sm:p-14 shadow-[rgba(0,0,0,0.03)_0px_2px_4px]">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-4">
             {stats.map((stat, i) => (
               <div
                 key={stat.label}
                 className={`text-center ${
-                  i < stats.length - 1 ? "lg:border-r lg:border-cream/[0.08]" : ""
+                  i < stats.length - 1
+                    ? "lg:border-r lg:border-[rgba(0,0,0,0.05)]"
+                    : ""
                 }`}
               >
-                <p className="font-serif text-[clamp(2rem,4vw,3rem)] font-medium text-cream leading-none mb-2">
+                <p
+                  className="text-[clamp(2rem,4vw,3rem)] font-semibold text-[#0d0d0d] leading-none mb-2"
+                  style={{ letterSpacing: "-0.8px" }}
+                >
                   {stat.value}
                 </p>
-                <p className="text-[13px] text-cream/60 font-medium mb-1">
+                <p className="text-[14px] text-[#0d0d0d] font-medium mb-1">
                   {stat.label}
                 </p>
-                <p className="text-[11px] text-cream/30">
-                  {stat.sub}
-                </p>
+                <p className="text-[13px] text-[#888888]">{stat.sub}</p>
               </div>
             ))}
           </div>

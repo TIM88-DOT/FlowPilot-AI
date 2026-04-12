@@ -608,7 +608,7 @@ function ReviewSettingsTab({ initial }: { initial: TenantSettings | undefined })
   };
 
   return (
-    <Card title="Review Platforms" description="Configure where and when FlowPilot sends review requests.">
+    <Card title="Review Platforms" description="Configure where and when Relora sends review requests.">
       <div className="space-y-5">
         <FieldBlock label="Google Place ID">
           <input

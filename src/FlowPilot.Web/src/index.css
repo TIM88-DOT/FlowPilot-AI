@@ -1,26 +1,53 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter", "Inter Fallback", system-ui, -apple-system, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, SFMono-Regular, monospace;
 
-  --color-cream: #F7F5F0;
-  --color-cream-dark: #EDEBE5;
-  --color-warm-white: #FCFBF8;
-  --color-ink: #1C1C1C;
-  --color-ink-light: #2F2F2F;
-  --color-ink-muted: #5A5A5A;
-  --color-ink-faint: #8C8C8C;
-  --color-teal: #1B5E5E;
-  --color-teal-light: #267A7A;
-  --color-teal-wash: rgba(27, 94, 94, 0.06);
-  --color-teal-border: rgba(27, 94, 94, 0.15);
-  --color-amber: #C8944A;
-  --color-amber-light: #D9A85E;
-  --color-amber-wash: rgba(200, 148, 74, 0.08);
-  --color-amber-border: rgba(200, 148, 74, 0.2);
-  --color-border: rgba(0, 0, 0, 0.07);
-  --color-border-strong: rgba(0, 0, 0, 0.13);
-  --color-card: rgba(252, 251, 248, 0.7);
+  /* Primary */
+  --color-white: #ffffff;
+  --color-black: #0d0d0d;
+  --color-brand: #18E299;
+  --color-brand-light: #d4fae8;
+  --color-brand-deep: #0fa76e;
+
+  /* Neutral scale */
+  --color-gray-900: #0d0d0d;
+  --color-gray-700: #333333;
+  --color-gray-500: #666666;
+  --color-gray-400: #888888;
+  --color-gray-200: #e5e5e5;
+  --color-gray-100: #f5f5f5;
+  --color-gray-50: #fafafa;
+
+  /* Semantic */
+  --color-ink: #0d0d0d;
+  --color-ink-muted: #333333;
+  --color-ink-faint: #666666;
+  --color-ink-placeholder: #888888;
+
+  /* Status */
+  --color-amber: #c37d0d;
+  --color-amber-wash: rgba(195, 125, 13, 0.08);
+  --color-amber-border: rgba(195, 125, 13, 0.2);
+  --color-error: #d45656;
+  --color-info: #3772cf;
+
+  /* Surface & borders */
+  --color-border: rgba(0, 0, 0, 0.05);
+  --color-border-medium: rgba(0, 0, 0, 0.08);
+  --color-card: #ffffff;
+  --color-surface: #fafafa;
+
+  /* Legacy aliases for app pages (keeps dashboard working) */
+  --color-cream: #ffffff;
+  --color-cream-dark: #f5f5f5;
+  --color-warm-white: #ffffff;
+  --color-teal: #18E299;
+  --color-teal-light: #0fa76e;
+  --color-teal-wash: rgba(24, 226, 153, 0.08);
+  --color-teal-border: rgba(24, 226, 153, 0.2);
+  --color-border-strong: rgba(0, 0, 0, 0.08);
 }
 
 html {
@@ -30,20 +57,10 @@ html {
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background-color: var(--color-cream);
+  background-color: #ffffff;
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  opacity: 0.25;
-  pointer-events: none;
-  z-index: 9999;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
 }
 
 .fade-in-section {

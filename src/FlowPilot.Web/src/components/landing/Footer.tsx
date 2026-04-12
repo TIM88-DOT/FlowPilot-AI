@@ -6,16 +6,18 @@ const links = {
 
 export default function Footer() {
   return (
-    <footer id="contact" className="border-t border-border py-10 px-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-8 mb-8">
+    <footer id="contact" className="border-t border-[rgba(0,0,0,0.05)] py-12 px-6 md:px-8">
+      <div className="max-w-[1200px] mx-auto">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-10 mb-10">
           {/* Brand */}
           <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <div className="w-5 h-5 rounded-full bg-teal" />
-              <span className="text-[16px] text-ink font-bold">FlowPilot</span>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-5 h-5 rounded-full bg-brand" />
+              <span className="text-[17px] text-[#0d0d0d] font-semibold tracking-[-0.2px]">
+                Relora
+              </span>
             </div>
-            <p className="text-[12px] text-ink-faint leading-relaxed max-w-[220px]">
+            <p className="text-[14px] text-[#666666] leading-[1.5] max-w-[240px]">
               AI-native communication for appointment-based businesses.
             </p>
           </div>
@@ -24,15 +26,15 @@ export default function Footer() {
           <div className="flex gap-16">
             {Object.entries(links).map(([title, items]) => (
               <div key={title}>
-                <p className="text-[11px] text-ink-faint tracking-[0.08em] uppercase mb-3 font-medium">
+                <p className="font-mono text-[12px] text-[#888888] tracking-[0.6px] uppercase mb-4 font-medium">
                   {title}
                 </p>
-                <ul className="space-y-2">
+                <ul className="space-y-2.5">
                   {items.map((item) => (
                     <li key={item}>
                       <a
                         href="#"
-                        className="text-[13px] text-ink-muted hover:text-ink transition-colors"
+                        className="text-[14px] text-[#0d0d0d] hover:text-brand transition-colors"
                       >
                         {item}
                       </a>
@@ -44,16 +46,16 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-border pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-[11px] text-ink-faint">
-            &copy; {new Date().getFullYear()} FlowPilot AI
+        <div className="border-t border-[rgba(0,0,0,0.05)] pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-[13px] text-[#888888]">
+            &copy; {new Date().getFullYear()} Relora AI
           </p>
-          <div className="flex gap-5">
+          <div className="flex gap-6">
             {["Twitter", "LinkedIn", "GitHub"].map((s) => (
               <a
                 key={s}
                 href="#"
-                className="text-[11px] text-ink-faint hover:text-ink-muted transition-colors"
+                className="text-[13px] text-[#888888] hover:text-brand transition-colors"
               >
                 {s}
               </a>

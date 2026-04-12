@@ -3,7 +3,7 @@ import { useFadeIn } from "../../hooks/useFadeIn";
 const testimonials = [
   {
     quote:
-      "FlowPilot reduced our no-shows by 45% in the first month. The AI writes better reminders than we ever did — in both French and English.",
+      "Relora reduced our no-shows by 45% in the first month. The AI writes better reminders than we ever did — in both French and English.",
     name: "Emily R.",
     role: "Owner",
     business: "Belleza Salon, Toronto",
@@ -30,14 +30,17 @@ export default function Testimonial() {
   return (
     <section
       ref={ref}
-      className={`py-28 px-6 fade-in-section ${visible ? "is-visible" : ""}`}
+      className={`py-24 px-6 md:px-8 fade-in-section ${visible ? "is-visible" : ""}`}
     >
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-[1200px] mx-auto">
         <div className="text-center mb-16">
-          <p className="text-[12px] text-teal font-semibold tracking-[0.12em] uppercase mb-4">
+          <p className="font-mono text-[12px] font-medium text-brand tracking-[0.6px] uppercase mb-4">
             Testimonials
           </p>
-          <h2 className="font-serif text-[clamp(1.8rem,4vw,2.5rem)] font-medium text-ink tracking-tight">
+          <h2
+            className="text-[clamp(1.8rem,4vw,2.5rem)] font-semibold text-[#0d0d0d] leading-[1.1]"
+            style={{ letterSpacing: "-0.8px" }}
+          >
             Loved by businesses like yours.
           </h2>
         </div>
@@ -46,22 +49,28 @@ export default function Testimonial() {
           {testimonials.map((t) => (
             <div
               key={t.name}
-              className="rounded-[16px] border border-border bg-warm-white p-7 flex flex-col hover:border-border-strong transition-colors duration-300"
+              className="rounded-2xl border border-[rgba(0,0,0,0.05)] bg-white p-8 flex flex-col hover:border-[rgba(0,0,0,0.08)] transition-colors duration-300 shadow-[rgba(0,0,0,0.03)_0px_2px_4px]"
             >
               {/* Quote mark */}
-              <span className="font-serif text-[48px] text-teal/20 leading-none mb-2">&ldquo;</span>
+              <span className="text-[48px] text-brand/20 leading-none mb-2 select-none">
+                &ldquo;
+              </span>
 
-              <p className="text-[14px] text-ink leading-[1.7] flex-1 mb-8">
+              <p className="text-[14px] text-[#333333] leading-[1.7] flex-1 mb-8">
                 {t.quote}
               </p>
 
-              <div className="flex items-center gap-3 pt-5 border-t border-border">
-                <div className="w-9 h-9 rounded-full bg-teal-wash border border-teal-border flex items-center justify-center text-[13px] font-semibold text-teal">
+              <div className="flex items-center gap-3 pt-5 border-t border-[rgba(0,0,0,0.05)]">
+                <div className="w-9 h-9 rounded-full bg-[#d4fae8] flex items-center justify-center text-[13px] font-semibold text-[#0fa76e]">
                   {t.name.charAt(0)}
                 </div>
                 <div>
-                  <p className="text-[13px] font-semibold text-ink">{t.name}</p>
-                  <p className="text-[11px] text-ink-faint">{t.role} &middot; {t.business}</p>
+                  <p className="text-[13px] font-semibold text-[#0d0d0d]">
+                    {t.name}
+                  </p>
+                  <p className="text-[12px] text-[#888888]">
+                    {t.role} &middot; {t.business}
+                  </p>
                 </div>
               </div>
             </div>

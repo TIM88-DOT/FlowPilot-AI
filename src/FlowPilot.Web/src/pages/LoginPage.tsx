@@ -41,7 +41,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-1.5 mb-6">
             <div className="w-6 h-6 rounded-full bg-teal" />
-            <span className="text-[19px] text-ink font-bold tracking-tight">FlowPilot</span>
+            <span className="text-[19px] text-ink font-bold tracking-tight">Relora</span>
           </Link>
           <h1 className="text-[22px] font-bold text-ink mb-1">Welcome back</h1>
           <p className="text-[14px] text-ink-muted">Sign in to your account</p>

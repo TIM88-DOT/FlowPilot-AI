@@ -46,7 +46,7 @@ export default function AppLayout() {
       {/* Logo */}
       <div className="px-4 h-[60px] flex items-center gap-1.5 shrink-0">
         <div className="w-5 h-5 rounded-full bg-teal" />
-        <span className="text-[16px] text-ink font-bold">FlowPilot</span>
+        <span className="text-[16px] text-ink font-bold">Relora</span>
       </div>
 
       {/* Nav */}

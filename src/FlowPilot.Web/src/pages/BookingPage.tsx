@@ -664,7 +664,7 @@ export default function BookingPage() {
       {/* Footer */}
       <div className="max-w-lg mx-auto px-6 pb-8">
         <p className="text-[11px] text-ink-faint text-center">
-          Powered by <span className="font-medium">FlowPilot</span>
+          Powered by <span className="font-medium">Relora</span>
         </p>
       </div>
     </div>

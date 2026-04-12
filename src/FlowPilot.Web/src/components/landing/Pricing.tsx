@@ -36,7 +36,7 @@ const plans: PlanProps[] = [
       "Reply AI + auto-confirm",
       "Review recovery",
       "Full analytics",
-      "Multilingual templates",
+      "Bilingual templates",
     ],
     cta: "Start free trial",
     highlighted: true,
@@ -56,47 +56,85 @@ const plans: PlanProps[] = [
   },
 ];
 
-function PlanCard({ name, price, period, description, features, cta, highlighted }: PlanProps) {
+function PlanCard({
+  name,
+  price,
+  period,
+  description,
+  features,
+  cta,
+  highlighted,
+}: PlanProps) {
   return (
     <div
-      className={`relative rounded-2xl p-6 flex flex-col transition-all duration-200 ${
+      className={`relative rounded-2xl p-7 flex flex-col transition-all duration-200 ${
         highlighted
-          ? "bg-teal text-white ring-1 ring-teal"
-          : "bg-warm-white border border-border hover:border-border-strong"
+          ? "bg-[#0d0d0d] text-white border border-[#0d0d0d]"
+          : "bg-white border border-[rgba(0,0,0,0.05)] hover:border-[rgba(0,0,0,0.08)] shadow-[rgba(0,0,0,0.03)_0px_2px_4px]"
       }`}
     >
       {highlighted && (
-        <span className="absolute -top-2.5 left-5 px-2.5 py-0.5 bg-amber text-white text-[10px] font-semibold rounded-full uppercase tracking-wider">
+        <span className="absolute -top-2.5 left-6 px-3 py-0.5 bg-brand text-[#0d0d0d] text-[11px] font-semibold rounded-full uppercase tracking-[0.6px]">
           Popular
         </span>
       )}
 
-      <div className="mb-5">
-        <h3 className={`text-[14px] font-semibold mb-0.5 ${highlighted ? "text-white" : "text-ink"}`}>
+      <div className="mb-6">
+        <h3
+          className={`text-[15px] font-semibold mb-1 ${
+            highlighted ? "text-white" : "text-[#0d0d0d]"
+          }`}
+        >
           {name}
         </h3>
-        <p className={`text-[12px] mb-4 ${highlighted ? "text-white/60" : "text-ink-muted"}`}>
+        <p
+          className={`text-[13px] mb-5 ${
+            highlighted ? "text-white/50" : "text-[#666666]"
+          }`}
+        >
           {description}
         </p>
         <div className="flex items-baseline gap-0.5">
-          <span className={`text-[2.2rem] font-bold leading-none ${highlighted ? "text-white" : "text-ink"}`}>
+          <span
+            className={`text-[2.5rem] font-semibold leading-none ${
+              highlighted ? "text-white" : "text-[#0d0d0d]"
+            }`}
+            style={{ letterSpacing: "-0.8px" }}
+          >
             {price}
           </span>
           {period && (
-            <span className={`text-[12px] ${highlighted ? "text-white/40" : "text-ink-faint"}`}>
+            <span
+              className={`text-[14px] ${
+                highlighted ? "text-white/40" : "text-[#888888]"
+              }`}
+            >
               {period}
             </span>
           )}
         </div>
       </div>
 
-      <div className={`h-px mb-5 ${highlighted ? "bg-white/15" : "bg-border"}`} />
+      <div
+        className={`h-px mb-6 ${
+          highlighted ? "bg-white/10" : "bg-[rgba(0,0,0,0.05)]"
+        }`}
+      />
 
-      <ul className="space-y-2.5 mb-6 flex-1">
+      <ul className="space-y-3 mb-8 flex-1">
         {features.map((feature) => (
-          <li key={feature} className="flex items-center gap-2">
-            <Check className={`w-3.5 h-3.5 shrink-0 ${highlighted ? "text-white/60" : "text-teal"}`} strokeWidth={2.5} />
-            <span className={`text-[13px] ${highlighted ? "text-white/80" : "text-ink-muted"}`}>
+          <li key={feature} className="flex items-center gap-2.5">
+            <Check
+              className={`w-4 h-4 shrink-0 ${
+                highlighted ? "text-brand" : "text-brand"
+              }`}
+              strokeWidth={2.5}
+            />
+            <span
+              className={`text-[14px] ${
+                highlighted ? "text-white/70" : "text-[#666666]"
+              }`}
+            >
               {feature}
             </span>
           </li>
@@ -105,10 +143,10 @@ function PlanCard({ name, price, period, description, features, cta, highlighted
 
       <a
         href="#contact"
-        className={`block text-center py-2.5 rounded-full text-[13px] font-medium transition-all ${
+        className={`block text-center py-2.5 rounded-full text-[15px] font-medium transition-all ${
           highlighted
-            ? "bg-white text-teal hover:bg-cream"
-            : "text-ink border border-border hover:border-border-strong"
+            ? "bg-white text-[#0d0d0d] hover:opacity-90"
+            : "text-[#0d0d0d] border border-[rgba(0,0,0,0.08)] hover:border-[rgba(0,0,0,0.15)]"
         }`}
       >
         {cta}
@@ -124,29 +162,32 @@ export default function Pricing() {
     <section
       id="pricing"
       ref={ref}
-      className={`py-20 px-6 fade-in-section ${visible ? "is-visible" : ""}`}
+      className={`py-24 px-6 md:px-8 fade-in-section ${visible ? "is-visible" : ""}`}
     >
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <p className="text-[11px] text-teal font-semibold tracking-[0.12em] uppercase mb-3">
+      <div className="max-w-[960px] mx-auto">
+        <div className="text-center mb-14">
+          <p className="font-mono text-[12px] font-medium text-brand tracking-[0.6px] uppercase mb-4">
             Pricing
           </p>
-          <h2 className="text-[clamp(1.6rem,3.5vw,2.2rem)] font-bold text-ink tracking-tight mb-2">
+          <h2
+            className="text-[clamp(1.8rem,3.5vw,2.5rem)] font-semibold text-[#0d0d0d] leading-[1.1] mb-3"
+            style={{ letterSpacing: "-0.8px" }}
+          >
             Simple, transparent pricing.
           </h2>
-          <p className="text-[14px] text-ink-muted">
+          <p className="text-[16px] text-[#666666]">
             14-day free trial &middot; No credit card required
           </p>
         </div>
 
         <div className="relative">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start blur-[6px] select-none pointer-events-none">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start blur-[6px] select-none pointer-events-none">
             {plans.map((plan) => (
               <PlanCard key={plan.name} {...plan} />
             ))}
           </div>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="px-5 py-2.5 bg-ink text-cream text-[14px] font-medium rounded-full shadow-lg">
+            <span className="px-6 py-3 bg-[#0d0d0d] text-white text-[15px] font-medium rounded-full shadow-lg">
               Coming soon
             </span>
           </div>
