@@ -17,6 +17,7 @@ public sealed class TwilioSmsProvider : ISmsProvider
 {
     private readonly HttpClient _httpClient;
     private readonly string _accountSid;
+    private readonly string? _messagingServiceSid;
     private readonly ILogger<TwilioSmsProvider> _logger;
 
     public TwilioSmsProvider(IConfiguration configuration, ILogger<TwilioSmsProvider> logger)
@@ -26,6 +27,7 @@ public sealed class TwilioSmsProvider : ISmsProvider
             ?? throw new InvalidOperationException("Twilio:AccountSid is not configured.");
         string authToken = configuration["Twilio:AuthToken"]
             ?? throw new InvalidOperationException("Twilio:AuthToken is not configured.");
+        _messagingServiceSid = configuration["Twilio:MessagingServiceSid"];
 
         _httpClient = new HttpClient
         {
@@ -38,12 +40,25 @@ public sealed class TwilioSmsProvider : ISmsProvider
 
     public async Task<SmsResult> SendAsync(string fromPhone, string toPhone, string body, CancellationToken cancellationToken = default)
     {
-        var formContent = new FormUrlEncodedContent(new[]
+        var formParams = new List<KeyValuePair<string, string>>
         {
-            new KeyValuePair<string, string>("From", fromPhone),
-            new KeyValuePair<string, string>("To", toPhone),
-            new KeyValuePair<string, string>("Body", body)
-        });
+            new("To", toPhone),
+            new("Body", body)
+        };
+
+        // When a Messaging Service is configured, use it for opt-out keyword control.
+        // The From number is still passed so Twilio sends from the tenant's specific number.
+        if (!string.IsNullOrEmpty(_messagingServiceSid))
+        {
+            formParams.Add(new("MessagingServiceSid", _messagingServiceSid));
+            formParams.Add(new("From", fromPhone));
+        }
+        else
+        {
+            formParams.Add(new("From", fromPhone));
+        }
+
+        var formContent = new FormUrlEncodedContent(formParams);
 
         try
         {

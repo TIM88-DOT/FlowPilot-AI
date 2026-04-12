@@ -35,6 +35,16 @@ public sealed class MessagingService : IMessagingService
         "STOP", "STOPALL", "UNSUBSCRIBE", "END", "QUIT", "ARRET", "ARRETER"
     };
 
+    /// <summary>
+    /// Keywords that trigger automatic opt-in (case-insensitive).
+    /// Twilio re-subscribes the number on their side automatically when these are received.
+    /// We mirror that by marking the customer as OptedIn in our DB.
+    /// </summary>
+    private static readonly HashSet<string> StartKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "START", "UNSTOP", "YES", "OUI"
+    };
+
     public MessagingService(
         AppDbContext db,
         ISmsProvider smsProvider,
@@ -138,6 +148,30 @@ public sealed class MessagingService : IMessagingService
             await _mediator.Publish(new CustomerOptedOutEvent(customer.Id, _currentTenant.TenantId), cancellationToken);
         }
 
+        // START keyword handling — Twilio already re-subscribes the number on their side;
+        // we mirror that by marking the customer OptedIn in our DB.
+        if (StartKeywords.Contains(normalizedBody))
+        {
+            customer = await _db.Customers
+                .FirstAsync(c => c.Id == customer.Id, cancellationToken);
+
+            if (customer.ConsentStatus != ConsentStatus.OptedIn)
+            {
+                customer.ConsentStatus = ConsentStatus.OptedIn;
+
+                _db.ConsentRecords.Add(new ConsentRecord
+                {
+                    CustomerId = customer.Id,
+                    Status = ConsentStatus.OptedIn,
+                    Source = ConsentSource.SmsOptIn,
+                    Notes = $"Customer sent: {normalizedBody}"
+                });
+
+                _logger.LogInformation("Customer {CustomerId} opted back in via SMS keyword: {Keyword}",
+                    customer.Id, normalizedBody);
+            }
+        }
+
         // Log the inbound message
         var message = new Message
         {
@@ -153,8 +187,8 @@ public sealed class MessagingService : IMessagingService
         _db.Messages.Add(message);
         await _db.SaveChangesAsync(cancellationToken);
 
-        // Publish event for non-STOP inbound messages → triggers ReplyHandlingAgent + SignalR
-        if (!StopKeywords.Contains(normalizedBody))
+        // Publish event for non-keyword inbound messages → triggers ReplyHandlingAgent + SignalR
+        if (!StopKeywords.Contains(normalizedBody) && !StartKeywords.Contains(normalizedBody))
         {
             await _mediator.Publish(new InboundSmsReceivedEvent(
                 message.Id, customer.Id, _currentTenant.TenantId, webhook.Body, webhook.FromPhone), cancellationToken);

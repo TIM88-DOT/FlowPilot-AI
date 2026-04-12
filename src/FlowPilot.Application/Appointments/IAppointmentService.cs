@@ -39,6 +39,11 @@ public interface IAppointmentService
     Task<Result<AppointmentDto>> CompleteAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Transitions appointment to Missed (no-show) and increments the customer's NoShowScore.
+    /// </summary>
+    Task<Result<AppointmentDto>> MarkMissedAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Transitions appointment to Rescheduled with new times, then creates a new Scheduled appointment.
     /// </summary>
     Task<Result<AppointmentDto>> RescheduleAsync(Guid id, RescheduleAppointmentRequest request, CancellationToken cancellationToken = default);

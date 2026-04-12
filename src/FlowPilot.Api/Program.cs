@@ -10,6 +10,7 @@ using FlowPilot.Application.Auth;
 using FlowPilot.Application.Appointments;
 using FlowPilot.Application.Customers;
 using FlowPilot.Application.Messaging;
+using FlowPilot.Application.Realtime;
 using FlowPilot.Application.Services;
 using FlowPilot.Application.PublicBooking;
 using FlowPilot.Application.Settings;
@@ -29,6 +30,7 @@ using FlowPilot.Infrastructure.Settings;
 using FlowPilot.Infrastructure.Stats;
 using FlowPilot.Infrastructure.Messaging;
 using FlowPilot.Infrastructure.Persistence;
+using FlowPilot.Infrastructure.Realtime;
 using FlowPilot.Infrastructure.Templates;
 using FlowPilot.Shared;
 using FlowPilot.Shared.Interfaces;
@@ -111,9 +113,15 @@ builder.Services.AddMediatR(cfg =>
 });
 
 // ---------------------------------------------------------------------------
-// SignalR — real-time appointment updates
+// SignalR — real-time appointment + SMS updates
 // ---------------------------------------------------------------------------
 builder.Services.AddSignalR();
+
+// Realtime fan-out via Postgres LISTEN/NOTIFY: the notifier is used by MediatR bridge
+// handlers in Infrastructure (shared by API and Workers), the listener runs only in the
+// API and relays notifications into the SignalR hubs.
+builder.Services.AddScoped<IRealtimeNotifier, PostgresRealtimeNotifier>();
+builder.Services.AddHostedService<PostgresRealtimeListener>();
 
 // ---------------------------------------------------------------------------
 // AI Agents — Azure OpenAI + Tool Registry + Orchestrator
@@ -143,6 +151,8 @@ builder.Services.AddScoped<IToolRegistry>(sp =>
     registry.Register(sp.GetRequiredService<ScheduleSmsTool>());
     registry.Register(sp.GetRequiredService<SendSmsTool>());
     registry.Register(sp.GetRequiredService<ConfirmAppointmentTool>());
+    registry.Register(sp.GetRequiredService<CancelAppointmentTool>());
+    registry.Register(sp.GetRequiredService<SendRescheduleLinkTool>());
     registry.Register(sp.GetRequiredService<ClassifyIntentTool>());
     registry.Register(sp.GetRequiredService<GetReviewPlatformsTool>());
     registry.Register(sp.GetRequiredService<CheckReviewCooldownTool>());
@@ -154,6 +164,8 @@ builder.Services.AddScoped<GetAppointmentDetailsTool>();
 builder.Services.AddScoped<ScheduleSmsTool>();
 builder.Services.AddScoped<SendSmsTool>();
 builder.Services.AddScoped<ConfirmAppointmentTool>();
+builder.Services.AddScoped<CancelAppointmentTool>();
+builder.Services.AddScoped<SendRescheduleLinkTool>();
 builder.Services.AddScoped<ClassifyIntentTool>();
 builder.Services.AddScoped<GetReviewPlatformsTool>();
 builder.Services.AddScoped<CheckReviewCooldownTool>();

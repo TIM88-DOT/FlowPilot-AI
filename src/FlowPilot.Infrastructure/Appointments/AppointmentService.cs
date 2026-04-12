@@ -160,6 +160,38 @@ public sealed class AppointmentService : IAppointmentService
     }
 
     /// <inheritdoc />
+    public async Task<Result<AppointmentDto>> MarkMissedAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        Appointment? appointment = await _db.Appointments
+            .Include(a => a.Customer)
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+
+        if (appointment is null)
+            return Result.Failure<AppointmentDto>(Error.NotFound("Appointment", id));
+
+        Result<AppointmentDto>? validationError = ValidateTransition(appointment, AppointmentStatus.Missed);
+        if (validationError is not null && validationError.IsFailure)
+            return validationError;
+
+        AppointmentStatus oldStatus = appointment.Status;
+        appointment.Status = AppointmentStatus.Missed;
+
+        // Increment no-show score on the customer (capped at 1.0)
+        appointment.Customer.NoShowScore = Math.Min(1.0m, appointment.Customer.NoShowScore + 0.1m);
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        await _mediator.Publish(new AppointmentStatusChangedEvent(
+            appointment.Id, appointment.CustomerId, _currentTenant.TenantId, _currentTenant.UserId,
+            oldStatus, AppointmentStatus.Missed), cancellationToken);
+
+        await _mediator.Publish(new AppointmentMissedEvent(
+            appointment.Id, appointment.CustomerId, _currentTenant.TenantId, appointment.StartsAt), cancellationToken);
+
+        return Result.Success(ToDto(appointment));
+    }
+
+    /// <inheritdoc />
     public async Task<Result<AppointmentDto>> RescheduleAsync(Guid id, RescheduleAppointmentRequest request, CancellationToken cancellationToken = default)
     {
         if (request.EndsAt <= request.StartsAt)

@@ -1,5 +1,10 @@
 {
-  "autoAccept": false,
-  "verboseLogging": false,
-  "theme": "dark"
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(curl -s http://localhost:5216/health)"
+    ]
+  },
+  "theme": "dark",
+  "verboseLogging": false
 }

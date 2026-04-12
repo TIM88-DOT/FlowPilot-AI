@@ -22,3 +22,13 @@ public sealed record AppointmentStatusChangedEvent(
     Guid? UserId,
     AppointmentStatus OldStatus,
     AppointmentStatus NewStatus) : INotification;
+
+/// <summary>
+/// Published when an appointment is marked as Missed (no-show).
+/// Downstream handlers may send a "we missed you" SMS, update analytics, or trigger no-show fees.
+/// </summary>
+public sealed record AppointmentMissedEvent(
+    Guid AppointmentId,
+    Guid CustomerId,
+    Guid TenantId,
+    DateTime StartsAt) : INotification;

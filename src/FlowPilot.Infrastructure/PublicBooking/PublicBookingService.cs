@@ -226,9 +226,14 @@ public sealed class PublicBookingService : IPublicBookingService
         string? normalizedPhone = NormalizeToE164(request.Phone);
         if (normalizedPhone is null)
             return Result.Failure<PublicBookingConfirmationDto>(
-                Error.Validation("Customer.InvalidPhone", "Phone number is not valid. Provide a number with country code (e.g. +213555123456)."));
+                Error.Validation("Customer.InvalidPhone", "Phone number is not valid. Provide a number with country code (e.g. +14165551234)."));
 
         // Find or create customer by phone — one phone = one customer identity.
+        // Track whether the customer was previously opted out on Twilio's side.
+        // Our DB re-opts them in on booking, but Twilio's carrier-level block remains
+        // until the customer texts START to the business number.
+        bool smsResubscribeRequired = false;
+
         Customer? customer = await _db.Customers
             .FirstOrDefaultAsync(c => c.Phone == normalizedPhone, ct);
 
@@ -261,6 +266,7 @@ public sealed class PublicBookingService : IPublicBookingService
             // Returning customer — only fill empty fields, never overwrite existing data.
             // Staff-managed fields (name, email) take precedence over self-service input.
             bool changed = false;
+            smsResubscribeRequired = customer.ConsentStatus == ConsentStatus.OptedOut;
 
             if (string.IsNullOrWhiteSpace(customer.FirstName))
             {
@@ -304,18 +310,45 @@ public sealed class PublicBookingService : IPublicBookingService
                 await _db.SaveChangesAsync(ct);
         }
 
-        // Create appointment via existing service — triggers AppointmentCreatedEvent → ReminderOptimizationAgent
-        Result<AppointmentDto> appointmentResult = await _appointmentService.CreateAsync(new CreateAppointmentRequest(
-            CustomerId: customer.Id,
-            StartsAt: startsAtUtc,
-            EndsAt: endsAt,
-            ServiceName: service.Name,
-            Notes: request.Notes), ct);
+        // Create or reschedule via the existing appointment service.
+        // Reschedule path is used by the SMS-driven reschedule flow: the customer receives an
+        // inbound SMS link carrying the appointment id, opens the booking page with
+        // ?reschedule={id}, and picks a new slot. We verify the target appointment belongs
+        // to the customer resolved by phone — otherwise it would be a cross-customer rewrite.
+        Result<AppointmentDto> appointmentResult;
+
+        if (request.RescheduleAppointmentId is Guid rescheduleId)
+        {
+            Appointment? existing = await _db.Appointments
+                .FirstOrDefaultAsync(a => a.Id == rescheduleId, ct);
+
+            if (existing is null)
+                return Result.Failure<PublicBookingConfirmationDto>(Error.NotFound("Appointment", rescheduleId));
+
+            if (existing.CustomerId != customer.Id)
+                return Result.Failure<PublicBookingConfirmationDto>(
+                    Error.Forbidden("This appointment does not belong to the provided phone number."));
+
+            appointmentResult = await _appointmentService.RescheduleAsync(
+                rescheduleId,
+                new RescheduleAppointmentRequest(startsAtUtc, endsAt),
+                ct);
+        }
+        else
+        {
+            // Create appointment via existing service — triggers AppointmentCreatedEvent → ReminderOptimizationAgent
+            appointmentResult = await _appointmentService.CreateAsync(new CreateAppointmentRequest(
+                CustomerId: customer.Id,
+                StartsAt: startsAtUtc,
+                EndsAt: endsAt,
+                ServiceName: service.Name,
+                Notes: request.Notes), ct);
+        }
 
         if (appointmentResult.IsFailure)
             return Result.Failure<PublicBookingConfirmationDto>(appointmentResult.Error);
 
-        // Load business name for confirmation
+        // Load business name and SMS sender phone for confirmation
         string businessName = await _db.Tenants
             .AsNoTracking()
             .Where(t => t.Id == _currentTenant.TenantId)
@@ -328,13 +361,22 @@ public sealed class PublicBookingService : IPublicBookingService
             .Select(t => t.BusinessPhone)
             .FirstOrDefaultAsync(ct);
 
+        string? smsNumber = smsResubscribeRequired
+            ? await _db.TenantSettings.AsNoTracking()
+                .Where(s => s.OwnerTenantId == _currentTenant.TenantId)
+                .Select(s => s.DefaultSenderPhone)
+                .FirstOrDefaultAsync(ct)
+            : null;
+
         return Result.Success(new PublicBookingConfirmationDto(
             AppointmentId: appointmentResult.Value.Id,
             ServiceName: service.Name,
             StartsAt: startsAtUtc,
             EndsAt: endsAt,
             BusinessName: businessName,
-            BusinessPhone: businessPhone));
+            BusinessPhone: businessPhone,
+            SmsResubscribeRequired: smsResubscribeRequired,
+            SmsNumber: smsNumber));
     }
 
     private static DayHoursDto? GetDayHours(BusinessHoursDto hours, DayOfWeek day) => day switch
@@ -353,7 +395,7 @@ public sealed class PublicBookingService : IPublicBookingService
     {
         try
         {
-            PhoneNumber number = PhoneUtil.Parse(rawPhone, "DZ");
+            PhoneNumber number = PhoneUtil.Parse(rawPhone, "CA");
             if (!PhoneUtil.IsValidNumber(number))
                 return null;
             return PhoneUtil.Format(number, PhoneNumberFormat.E164);

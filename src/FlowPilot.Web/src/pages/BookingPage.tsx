@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Clock, MapPin, Phone, ChevronLeft, Check, Calendar, Loader2 } from "lucide-react";
+import { Clock, MapPin, Phone, ChevronLeft, Check, Calendar, Loader2, RefreshCw } from "lucide-react";
 import publicApi from "../lib/publicApi";
 
 // ---------------------------------------------------------------------------
@@ -60,6 +60,8 @@ interface BookingConfirmation {
   endsAt: string;
   businessName: string;
   businessPhone: string | null;
+  smsResubscribeRequired: boolean;
+  smsNumber: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,7 +101,7 @@ function formatTime(timeStr: string): string {
 
 function formatPrice(price: number | null, currency: string | null): string {
   if (price === null || price === undefined) return "";
-  const cur = currency || "DZD";
+  const cur = currency || "CAD";
   return new Intl.NumberFormat("en-US", { style: "currency", currency: cur, minimumFractionDigits: 0 }).format(price);
 }
 
@@ -146,6 +148,13 @@ function getOpenDaysSummary(hours: BusinessHours | null): string {
 
 export default function BookingPage() {
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
+  // Reschedule mode: the customer clicked a link in an inbound SMS reply.
+  // We still walk them through the full flow (service → date → info → confirm) but
+  // the backend will call RescheduleAsync on the existing appointment instead of creating
+  // a new one. The id is UUID-validated in the backend, we just pass it through.
+  const rescheduleAppointmentId = searchParams.get("reschedule");
+  const isRescheduling = !!rescheduleAppointmentId;
   const [step, setStep] = useState<BookingStep>(1);
   const [selectedService, setSelectedService] = useState<PublicServiceDto | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
@@ -200,6 +209,7 @@ export default function BookingPage() {
           startsAt: `${selectedDate}T${selectedSlot!.startTime}:00`,
           notes: data.notes || null,
           preferredLanguage,
+          rescheduleAppointmentId: rescheduleAppointmentId || null,
         })
         .then((r) => r.data),
     onSuccess: (data: BookingConfirmation) => {
@@ -291,6 +301,21 @@ export default function BookingPage() {
           </div>
         </div>
       </div>
+
+      {/* Reschedule banner — shown when the customer arrived via an SMS reschedule link */}
+      {isRescheduling && step !== "success" && (
+        <div className="max-w-lg mx-auto px-6 pt-5">
+          <div className="rounded-2xl border border-teal/30 bg-teal-wash p-4 flex items-start gap-3">
+            <RefreshCw className="w-4 h-4 text-teal mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[14px] font-semibold text-ink">Rescheduling your appointment</p>
+              <p className="text-[12px] text-ink-muted mt-0.5">
+                Pick a new service and time. Your original booking will be updated — no new appointment is created.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Step Indicator */}
       {step !== "success" && (
@@ -496,7 +521,7 @@ export default function BookingPage() {
                   {...register("phone")}
                   type="tel"
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors"
-                  placeholder="+213 555 123 456"
+                  placeholder="+1 416 555 1234"
                 />
                 {errors.phone && <p className="text-[12px] text-red-500 mt-1">{errors.phone.message}</p>}
               </div>
@@ -599,8 +624,20 @@ export default function BookingPage() {
             <div className="w-16 h-16 rounded-full bg-teal/10 flex items-center justify-center mx-auto mb-5">
               <Check className="w-8 h-8 text-teal" />
             </div>
-            <h2 className="text-[22px] font-bold text-ink mb-2">Booking Confirmed!</h2>
+            <h2 className="text-[22px] font-bold text-ink mb-2">
+              {isRescheduling ? "Appointment Rescheduled!" : "Booking Confirmed!"}
+            </h2>
             <p className="text-[14px] text-ink-muted mb-6">You'll receive a reminder SMS before your appointment.</p>
+
+            {confirmation.smsResubscribeRequired && confirmation.smsNumber && (
+              <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-left mb-4">
+                <p className="text-[13px] text-amber-800">
+                  You previously unsubscribed from SMS. To receive appointment reminders, please text{" "}
+                  <span className="font-bold">START</span> to{" "}
+                  <span className="font-bold">{confirmation.smsNumber}</span>.
+                </p>
+              </div>
+            )}
 
             <div className="rounded-2xl border border-border bg-warm-white p-5 text-left space-y-3 mb-6">
               <SummaryRow label="Service" value={confirmation.serviceName} />

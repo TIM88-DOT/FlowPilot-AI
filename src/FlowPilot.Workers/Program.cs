@@ -1,8 +1,10 @@
 using FlowPilot.Application.Agents;
 using FlowPilot.Application.Messaging;
+using FlowPilot.Application.Realtime;
 using FlowPilot.Infrastructure.Appointments;
 using FlowPilot.Infrastructure.Messaging;
 using FlowPilot.Infrastructure.Persistence;
+using FlowPilot.Infrastructure.Realtime;
 using FlowPilot.Shared;
 using FlowPilot.Shared.Interfaces;
 using FlowPilot.Workers;
@@ -45,14 +47,18 @@ try
     // No-op agent orchestrator — AI agents require Azure OpenAI (API host only)
     builder.Services.AddScoped<IAgentOrchestrator, NoOpAgentOrchestrator>();
 
+    // Realtime fan-out publisher — Workers emit events via pg_notify; the API hosts the
+    // listener that relays them to SignalR hubs. This is how worker-initiated state changes
+    // (Scheduled→Missed, Confirmed→Completed) reach connected browsers live.
+    builder.Services.AddScoped<IRealtimeNotifier, PostgresRealtimeNotifier>();
+
     // MediatR — handlers live in Infrastructure assembly
     builder.Services.AddMediatR(cfg =>
         cfg.RegisterServicesFromAssemblyContaining<AppointmentStatusChangedHandler>());
 
     // Hosted services
     builder.Services.AddHostedService<ScheduledMessageDispatcher>();
-    builder.Services.AddHostedService<AppointmentAutoCompletionWorker>();
-    builder.Services.AddHostedService<AppointmentAutoConfirmWorker>();
+    builder.Services.AddHostedService<AppointmentLifecycleWorker>();
 
     var host = builder.Build();
     host.Run();
