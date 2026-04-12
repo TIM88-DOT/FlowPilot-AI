@@ -21,6 +21,9 @@ public class FlowPilotApiFactory : WebApplicationFactory<Program>, IAsyncLifetim
     {
         builder.UseEnvironment("Development");
 
+        // Force FakeSmsProvider in tests — appsettings may default to "Twilio"
+        builder.UseSetting("SmsProvider", "Fake");
+
         builder.ConfigureServices(services =>
         {
             // Remove the existing AppDbContext registration

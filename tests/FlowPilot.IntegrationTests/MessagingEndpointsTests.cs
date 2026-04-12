@@ -297,7 +297,7 @@ public class MessagingEndpointsTests : IClassFixture<FlowPilotApiFactory>
     public async Task InboundSms_StopVariations_AllOptOut()
     {
         await AuthenticateAsync(email: "stop-variations@test.dev");
-        string[] keywords = ["STOP", "stop", "UNSUBSCRIBE", "Cancel", "END"];
+        string[] keywords = ["STOP", "stop", "UNSUBSCRIBE", "END", "QUIT"];
 
         for (int i = 0; i < keywords.Length; i++)
         {
