@@ -1,98 +1,70 @@
-# Relora AI
+# Relora AI ✨
 
 **Appointments that manage themselves.**
 
-An AI-native communication OS for appointment-based small businesses — salons, clinics, barbers, studios, dentists. Bilingual (FR + EN) from day one, built for the Canadian market.
+An AI-native communication OS for appointment-based small businesses — salons, clinics, barbers, studios, dentists. Bilingual (FR + EN), built for the Canadian market.
 
-> **Heads up — the product was renamed.** This repository is still called `FlowPilot` and the .NET solution, projects, and namespaces are all `FlowPilot.*`. That's the old working name. The product is now **Relora AI** everywhere the user sees it (landing page, app UI, marketing). The source-tree rename is planned but not yet done, so expect `FlowPilot` in paths, `dotnet` commands, and assembly names throughout.
+> **Heads up — the product was renamed.** The repo, .NET solution, projects, and namespaces are all still `FlowPilot.*` (the old working name). Everything the user sees is **Relora AI**. The source-tree rename is planned but not yet done, so expect `FlowPilot` in paths and `dotnet` commands.
 
 ---
 
-## Why this exists
+## 💡 Why this exists
 
-Small businesses don't lose money because they're bad at their craft. They lose it in the gaps between appointments — the no-shows, the silent customers, the reviews that never got asked for, the reminder that went out in the wrong language.
+Small businesses don't lose money because they're bad at their craft. They lose it in the gaps between appointments — no-shows, silent customers, reviews that never got asked for, reminders sent in the wrong language.
 
-The owner of a 3-chair salon does not want a CRM. They don't want another dashboard to check. They want the *outcome*: clients show up on time, the chair stays full, the 5-star reviews keep rolling in. Everything else is overhead.
+The owner of a 3-chair salon doesn't want a CRM or another dashboard. They want the *outcome*: full chairs, clients on time, 5-star reviews rolling in. Everything else is overhead.
 
-Existing tools make them work harder:
+Existing tools make them work harder. Booking software sends dumb reminders at fixed hours. Marketing tools spam everyone with the same campaign. Review platforms ask for feedback at random. And almost all of them are English-only — a non-starter in Montreal, Québec City, or half of Ontario.
 
-- **Booking software** sends dumb reminders at fixed hours. A client who always replies at 9pm gets pinged at 10am and forgets by evening.
-- **Marketing tools** spam everyone with the same campaign regardless of language, history, or consent.
-- **Review platforms** ask for feedback at random — usually right after a rushed appointment, never after the ones the client actually loved.
-- **Everything is in English.** In Montreal, Québec City, Moncton, and half of Ontario, that's a non-starter.
-
-Relora flips this. The AI *is* the workflow — not a chatbot bolted onto one. It decides when to remind, in which language, using which tone. It reads incoming replies and updates the appointment without a human touching a keyboard. It waits for the right moment to ask for a review, and only asks the clients likely to leave a good one. The owner watches it happen.
+Relora flips this. The AI *is* the workflow, not a chatbot bolted onto one. It picks when to remind, in which language, using which tone. It reads incoming replies and updates the appointment with no human in the loop. It waits for the right moment to ask for a review, and only asks clients likely to leave a good one.
 
 **The bet:** the next generation of SMB software won't have settings pages. It will have outcomes, and an AI agent that takes responsibility for them.
 
 ---
 
-## What it does
+## 🚀 What it does
 
-### Smart bilingual reminders
-Every client has a preferred language (FR or EN). Every SMS — reminder, confirmation, reschedule, review request — is rendered in that language with templates the tenant can override. An LLM-driven agent picks the optimal send time per client based on past response patterns, not a static 24h-before rule.
-
-### Conversational SMS, both directions
-Clients reply in plain language — "can I move to Thursday?", "need to cancel", "see you at 3". Inbound SMS is classified by intent, matched to the appointment, and the system responds or reschedules without anyone in the back office lifting a finger. A reschedule link in the reply lets the client pick a new slot themselves on a mobile-first public booking page.
-
-### Automatic review recovery
-After a completed appointment, the system waits for the right window, checks a 30-day cooldown, and sends a review request — but only to clients the AI is confident will leave a positive one. The link drops them directly on the tenant's Google, Facebook, or Trustpilot page.
-
-### Public booking without an account
-Every tenant gets a shareable `/book/{slug}` URL. No app install, no signup — clients pick a service, pick a slot, enter their phone, confirm. The system handles consent capture, deduplication by phone number, and auto-schedules the reminder workflow the moment the booking lands.
-
-### No-show scoring and at-risk flags
-Every customer carries a rolling no-show score. Appointments flagged as at-risk get an extra confirmation touch; confirmed ones get auto-completed when the end time passes. The owner sees one number, not a spreadsheet.
-
-### Owner-grade dashboard
-Live appointment feed, real-time updates (SignalR), weekly stats, upcoming at-risk list. Designed to be glanceable on a phone between clients, not studied from a laptop.
+- **Smart bilingual reminders.** Per-client language (FR/EN), per-client send-time picked by an LLM agent based on past response patterns — not a static 24h-before rule.
+- **Conversational SMS, both directions.** Inbound replies are intent-classified, matched to the appointment, and answered or rescheduled automatically. A reschedule link drops the client on a mobile public booking page.
+- **Automatic review recovery.** Post-appointment, a deterministic cooldown gate + AI confidence score decide who gets a review request. Link goes straight to Google, Facebook, or Trustpilot.
+- **Public booking without an account.** Every tenant gets `/book/{slug}`. Pick service → slot → phone → confirm. Consent capture and phone-based dedup are handled server-side.
+- **No-show scoring + at-risk flags.** Rolling per-customer score, extra confirmation touch for at-risk appointments, auto-completion when end time passes.
+- **Owner-grade dashboard.** Live feed over SignalR, weekly stats, at-risk list — glanceable on a phone between clients.
 
 ---
 
-## Design principles
+## 🧭 Design principles
 
-### The application is always the source of truth
-Business rules never live inside a prompt. Consent checks, cooldown windows, business-hours gates, status transitions — all deterministic C# that runs *before* any LLM call. The AI decides timing, tone, and intent classification. The code enforces what is legal and what is possible.
-
-### Multi-tenant isolation is not a feature, it's a precondition
-Every entity carries a `TenantId`. Every query is filtered by EF Core global filters. Every Service Bus message validates its tenant before processing. Cross-tenant isolation tests run on every CI build. A tenant leak is a product-ending bug, so it's built to be impossible, not unlikely.
-
-### Privacy-first by default
-Soft delete everywhere. GDPR-style anonymization on customer delete (PII wiped, not just marked dead). Consent is append-only — you can always prove when, where, and how a customer opted in. Column-level encryption on phone and email (in progress).
-
-### Events, not cron jobs
-There is no Hangfire, no Quartz, no background cron. Scheduling is Azure Service Bus deferred messages with sequence numbers stored on the row, so anything can be cancelled deterministically when a client reschedules or cancels. Everything interesting in the system is an event someone else can listen to.
-
-### One monolith, nine bounded contexts
-Tenants · Identity & Auth · Customers · Appointments · Messaging · Campaigns · AI/Agents · Billing · Analytics. Modules never touch each other's `DbContext` — ArchUnitNET tests fail the build if they do. This keeps the option open to split a module into a service later without a rewrite.
+- **The application is the source of truth.** Business rules never live in a prompt. Consent checks, cooldown windows, business-hours gates, status transitions — deterministic C# that runs *before* any LLM call. The AI decides timing, tone, and intent; the code enforces what's legal and possible.
+- **Multi-tenant isolation is a precondition, not a feature.** `TenantId` on every entity, EF Core global query filters on every query, tenant validation on every Service Bus message, cross-tenant tests on every CI run. A tenant leak is product-ending, so it's built to be impossible.
+- **Privacy-first.** Soft delete everywhere, GDPR-style anonymization on customer delete, append-only consent log. Column-level encryption on phone/email is in progress.
+- **Events, not cron jobs.** No Hangfire, no Quartz. Scheduling = Azure Service Bus deferred messages with sequence numbers stored on the row, so anything can be cancelled deterministically on reschedule or cancel.
+- **One monolith, nine bounded contexts.** Tenants · Identity & Auth · Customers · Appointments · Messaging · Campaigns · AI/Agents · Billing · Analytics. Modules never touch each other's `DbContext` — ArchUnitNET tests fail the build if they do.
 
 ---
 
-## Tech
+## 🛠️ Tech
 
-### Backend
-- **.NET 8** minimal APIs, MediatR for in-process domain events, `Result<T>` for all service boundaries
-- **EF Core 8** on **PostgreSQL**, snake_case, global query filters on every entity
-- **Azure Service Bus** for scheduled messages, integration events, and worker queues
-- **Azure OpenAI** (`Azure.AI.OpenAI`) for reminder optimization, intent classification, review confidence scoring
-- **Twilio** SMS behind `ISmsProvider` (pluggable — a fake provider runs in tests and local dev)
-- **SignalR** for real-time dashboard updates
-- **Seq** for structured logs locally
+**Backend**
+- .NET 8 minimal APIs, MediatR for in-process domain events, `Result<T>` on all service boundaries
+- EF Core 8 on PostgreSQL, snake_case, global query filters on every entity
+- Azure Service Bus for scheduled messages, integration events, and worker queues
+- Azure OpenAI (`Azure.AI.OpenAI`) for reminder optimization, intent classification, review confidence
+- Twilio SMS behind `ISmsProvider` (fake provider for tests and local dev)
+- SignalR for real-time dashboard, Seq for local structured logs
 
-### Frontend
-- **React 18 + TypeScript** (strict, no `any`)
-- **TanStack Query** for all server state, **React Hook Form + Zod** for all forms
-- **Tailwind + shadcn/ui** — Mintlify-inspired design system, documented in [`DESIGN.md`](DESIGN.md)
-- JWT in memory only, refresh token in `httpOnly` cookie
-- Code-split public booking flow, mobile-first
+**Frontend**
+- React 18 + TypeScript (strict, no `any`)
+- TanStack Query for server state, React Hook Form + Zod for forms
+- Tailwind + shadcn/ui, Mintlify-inspired design system (see [`DESIGN.md`](DESIGN.md))
+- JWT in memory, refresh token in `httpOnly` cookie, code-split public booking flow
 
-### Infra
-- **Azure Bicep** in `infra/`
-- **Docker Compose** for local PostgreSQL + Seq
+**Infra**
+- Azure Bicep in `infra/`, Docker Compose for local PostgreSQL + Seq
 
 ---
 
-## Repository layout
+## 📁 Repository layout
 
 ```
 FlowPilot.sln
@@ -116,7 +88,7 @@ FlowPilot.sln
 
 ---
 
-## Getting started
+## ⚡ Getting started
 
 ```bash
 # Local infra
@@ -136,18 +108,10 @@ npm run dev
 dotnet test FlowPilot.sln
 ```
 
-The API comes up on `https://localhost:7xxx`, the web app on `http://localhost:5173`. Register a tenant from the web UI — the account gets seeded with FR + EN system templates and a default plan.
-
-A one-shot `start.ps1` / `stop.ps1` pair at the repo root brings the full stack up and down on Windows.
+API on `https://localhost:7xxx`, web on `http://localhost:5173`. Register a tenant from the UI — the account is seeded with FR + EN templates and a default plan. `start.ps1` / `stop.ps1` at the repo root bring the full stack up and down on Windows.
 
 ---
 
-## Status
+## 📍 Status
 
-Sprint 1 shipped the full MVP demo loop end-to-end: auth, tenants, customers with consent, appointments, bilingual reminder workflow, public booking, review request flow, real-time dashboard. Sprint 2 is the path to Azure production — column encryption, Twilio per-tenant provisioning, at-risk flagging polish, and the auto-completion worker. See [`docs/sprint1.md`](docs/sprint1.md) and [`docs/sprint2.md`](docs/sprint2.md) for the detailed trail.
-
----
-
-## License
-
-Proprietary. All rights reserved.
+Sprint 1 shipped the full MVP demo loop: auth, tenants, customers with consent, appointments, bilingual reminder workflow, public booking, review request flow, real-time dashboard. Sprint 2 is the path to Azure production — column encryption, per-tenant Twilio provisioning, at-risk polish, auto-completion worker. See [`docs/sprint1.md`](docs/sprint1.md) and [`docs/sprint2.md`](docs/sprint2.md).
