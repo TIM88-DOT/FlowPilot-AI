@@ -1,0 +1,69 @@
+graph LR
+    subgraph TRIGGERS["Triggers"]
+        BOOK["Customer Books<br/>(Public Page)"]
+        WORKER_CONFIRM["AutoConfirm Worker<br/>(3h before)"]
+        WORKER_COMPLETE["AutoCompletion Worker<br/>(after EndsAt)"]
+        TWILIO_IN["Twilio Webhook<br/>(Inbound SMS)"]
+        STAFF["Staff Action<br/>(Dashboard)"]
+    end
+
+    subgraph EVENTS["MediatR Domain Events"]
+        ACE["AppointmentCreated<br/>Event"]
+        ASCE["AppointmentStatus<br/>ChangedEvent"]
+        COE["CustomerOptedOut<br/>Event"]
+        ISRE["InboundSmsReceived<br/>Event"]
+    end
+
+    subgraph HANDLERS["Event Handlers"]
+        H1["AppointmentBooked<br/>SmsHandler<br/>instant confirmation SMS"]
+        H2["ReminderOptimization<br/>Agent<br/>schedules 2 reminders"]
+        H3["AppointmentRealtime<br/>Handler<br/>pushes to SignalR"]
+        H4["AppointmentStatus<br/>ChangedHandler<br/>creates audit log"]
+        H5["ReviewRecovery<br/>Agent<br/>sends review request"]
+        H6["CustomerOptedOut<br/>Handler<br/>cancels pending SMS"]
+        H7["SmsRealtime<br/>Handler<br/>pushes to SignalR +<br/>ReplyHandlingAgent"]
+    end
+
+    subgraph EFFECTS["Side Effects"]
+        SMS_OUT["SMS Sent<br/>(Twilio)"]
+        SIGNALR["SignalR Push<br/>(Dashboard)"]
+        DB["DB Update<br/>(Status / Audit)"]
+        SCHEDULED["ScheduledMessage<br/>Created"]
+    end
+
+    %% Trigger -> Event
+    BOOK --> ACE
+    WORKER_CONFIRM --> ASCE
+    WORKER_COMPLETE --> ASCE
+    TWILIO_IN --> ISRE
+    TWILIO_IN -->|STOP keyword| COE
+    STAFF --> ASCE
+
+    %% Event -> Handlers
+    ACE --> H1
+    ACE --> H2
+    ACE --> H3
+    ASCE --> H4
+    ASCE --> H5
+    COE --> H6
+    ISRE --> H7
+
+    %% Handlers -> Effects
+    H1 --> SMS_OUT
+    H2 --> SCHEDULED
+    H3 --> SIGNALR
+    H4 --> DB
+    H5 --> SMS_OUT
+    H6 --> DB
+    H7 --> SIGNALR
+    H7 -->|agent classifies| DB
+
+    classDef triggerStyle fill:#4A90D9,stroke:#2C5F8A,color:#fff
+    classDef eventStyle fill:#E8913A,stroke:#C47830,color:#fff
+    classDef handlerStyle fill:#7B68EE,stroke:#5A4CBE,color:#fff
+    classDef effectStyle fill:#50C878,stroke:#3DA660,color:#fff
+
+    class TRIGGERS triggerStyle
+    class EVENTS eventStyle
+    class HANDLERS handlerStyle
+    class EFFECTS effectStyle

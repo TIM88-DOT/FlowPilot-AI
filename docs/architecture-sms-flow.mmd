@@ -1,0 +1,60 @@
+sequenceDiagram
+    participant C as Customer Phone
+    participant T as Twilio
+    participant API as FlowPilot API
+    participant MS as MessagingService
+    participant MR as MediatR
+    participant RA as ReplyHandling Agent
+    participant AI as Azure OpenAI
+    participant DB as PostgreSQL
+    participant SR as SignalR
+    participant D as Staff Dashboard
+
+    Note over C,D: BOOKING FLOW
+    C->>API: POST /api/v1/public/book/{slug}
+    API->>DB: Find-or-create Customer (OptedIn)
+    API->>DB: Create Appointment (Scheduled)
+    API->>MR: Publish AppointmentCreatedEvent
+
+    par Instant Confirmation
+        MR->>MS: AppointmentBookedSmsHandler
+        MS->>T: Send SMS (FR/EN)
+        T->>C: "Votre RDV est planifie. Repondez OUI!"
+    and Schedule Reminders
+        MR->>AI: ReminderOptimizationAgent
+        AI->>DB: ScheduleSms (24h before)
+        AI->>DB: ScheduleSms (3-4h before)
+    and Real-time Update
+        MR->>SR: AppointmentRealtimeHandler
+        SR->>D: New appointment notification
+    end
+
+    Note over C,D: REMINDER DISPATCH (Worker)
+    DB-->>MS: ScheduledMessageDispatcher polls
+    MS->>T: Send reminder SMS
+    T->>C: "Rappel: votre RDV demain a 10h. OUI pour confirmer"
+
+    Note over C,D: CUSTOMER REPLY
+    C->>T: "Oui je confirme"
+    T->>API: POST /api/webhooks/twilio/incoming
+    API->>API: TwilioSignatureFilter (HMAC-SHA1)
+    API->>MS: ProcessInboundAsync
+    MS->>DB: Save inbound Message
+    MS->>MR: Publish InboundSmsReceivedEvent
+
+    par Real-time + Agent
+        MR->>SR: SmsRealtimeHandler
+        SR->>D: New message in inbox
+    and Intent Classification
+        MR->>RA: ReplyHandlingAgent
+        RA->>AI: Classify intent (all upcoming appointments)
+        AI-->>RA: Confirm, confidence 0.92
+        RA->>DB: Appointment.Status = Confirmed
+        RA->>MR: Publish AppointmentStatusChangedEvent
+    end
+
+    Note over C,D: AUTO-CONFIRM (if no reply)
+    Note right of DB: AppointmentAutoConfirmWorker<br/>Scheduled -> Confirmed<br/>(3h before StartsAt)
+
+    Note over C,D: AUTO-COMPLETE (after appointment)
+    Note right of DB: AppointmentAutoCompletionWorker<br/>Confirmed -> Completed<br/>(after EndsAt)

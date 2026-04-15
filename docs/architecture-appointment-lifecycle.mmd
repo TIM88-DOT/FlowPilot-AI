@@ -1,0 +1,34 @@
+stateDiagram-v2
+    [*] --> Scheduled: Customer books<br/>(public page or staff)
+
+    Scheduled --> Confirmed: Customer replies YES<br/>(ReplyHandlingAgent)
+    Scheduled --> Confirmed: Auto-confirm worker<br/>(3h before StartsAt)
+    Scheduled --> Cancelled: Customer replies CANCEL<br/>(ReplyHandlingAgent)
+    Scheduled --> Cancelled: Staff cancels
+    Scheduled --> Rescheduled: Staff reschedules<br/>(creates new appointment)
+
+    Confirmed --> Completed: Auto-completion worker<br/>(after EndsAt)
+    Confirmed --> Cancelled: Staff cancels
+    Confirmed --> Rescheduled: Staff reschedules<br/>(creates new appointment)
+
+    Completed --> [*]
+    Cancelled --> [*]
+    Rescheduled --> [*]
+
+    note right of Scheduled
+        Triggers on entry:
+        - AppointmentBookedSmsHandler (instant SMS)
+        - ReminderOptimizationAgent (schedule reminders)
+        - AppointmentRealtimeHandler (SignalR)
+    end note
+
+    note right of Confirmed
+        Triggers on transition:
+        - AppointmentStatusChangedHandler (audit log)
+    end note
+
+    note right of Completed
+        Triggers on transition:
+        - AppointmentStatusChangedHandler (audit log)
+        - ReviewRecoveryAgent (review request SMS)
+    end note

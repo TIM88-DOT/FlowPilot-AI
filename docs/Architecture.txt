@@ -1,0 +1,4 @@
+  1. System Architecture — all layers, bounded contexts, agents, tools, workers, frontend
+  2. Event-Driven Architecture — the 4 MediatR events, 7 handlers, triggers, and side effects
+  3. SMS Lifecycle Sequence — end-to-end from booking to completion with all participants
+  4. Appointment State Machine — all 6 states and their transition triggers
