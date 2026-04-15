@@ -21,6 +21,9 @@
 .claude/memory.json
 .claude/.sessions/
 
+# Local dev runtime logs (start.ps1 / stop.ps1)
+.dev-logs/
+
 # OS
 Thumbs.db
 Desktop.ini

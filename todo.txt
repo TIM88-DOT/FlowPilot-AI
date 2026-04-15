@@ -1,0 +1,6 @@
+WhatsApp integration
+add the tracking module for repair businesses
+staff management + (assignment in case the customer knows who he wants to work with)
+azure service bus (in prod)
+
+
