@@ -21,9 +21,15 @@ export function useAppointmentEvents() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     });
 
+    const unsubAtRisk = on("AppointmentAtRisk", () => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    });
+
     return () => {
       unsubStatus();
       unsubCreated();
+      unsubAtRisk();
     };
   }, [on, queryClient]);
 }

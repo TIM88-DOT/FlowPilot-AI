@@ -32,3 +32,14 @@ public sealed record AppointmentMissedEvent(
     Guid CustomerId,
     Guid TenantId,
     DateTime StartsAt) : INotification;
+
+/// <summary>
+/// Published once when a Scheduled (still-unconfirmed) appointment enters the final confirmation
+/// window before StartsAt. Downstream handlers push a realtime alert to the dashboard so staff
+/// can call the customer or free the slot. The appointment stays in Scheduled status.
+/// </summary>
+public sealed record AppointmentAtRiskEvent(
+    Guid AppointmentId,
+    Guid CustomerId,
+    Guid TenantId,
+    DateTime StartsAt) : INotification;

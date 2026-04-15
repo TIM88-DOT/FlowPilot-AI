@@ -18,6 +18,12 @@ public class Appointment : BaseEntity
     public string? ServiceName { get; set; }
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// Set when the pre-appointment at-risk detector flags a Scheduled (unconfirmed) appointment
+    /// within the final confirmation window. Acts as an idempotency guard so the event fires once.
+    /// </summary>
+    public DateTime? AtRiskAlertedAt { get; set; }
+
     public Customer Customer { get; set; } = null!;
     public User? StaffUser { get; set; }
     public ICollection<ScheduledMessage> ScheduledMessages { get; set; } = new List<ScheduledMessage>();

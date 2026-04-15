@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, ChevronRight, ChevronLeft, Calendar, Clock, RefreshCw, Search } from "lucide-react";
+import { Plus, X, ChevronRight, ChevronLeft, Calendar, Clock, RefreshCw, Search, Phone, Mail, AlertTriangle, ShieldCheck } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,11 +25,36 @@ interface Appointment {
   staffUserId: string | null;
   externalId: string | null;
   notes: string | null;
+  atRiskAlertedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-const statusFilters = ["All", "Scheduled", "Confirmed", "Completed", "Cancelled", "NoShow"];
+interface CustomerDetail {
+  id: string;
+  phone: string;
+  email: string | null;
+  firstName: string;
+  lastName: string | null;
+  preferredLanguage: string;
+  tags: string | null;
+  noShowScore: number;
+  consentStatus: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const statusFilters = ["All", "AtRisk", "Scheduled", "Confirmed", "Completed", "Cancelled", "NoShow"];
+
+const filterLabels: Record<string, string> = {
+  All: "All",
+  AtRisk: "At risk",
+  Scheduled: "Scheduled",
+  Confirmed: "Confirmed",
+  Completed: "Completed",
+  Cancelled: "Cancelled",
+  NoShow: "No-show",
+};
 
 const createSchema = z.object({
   customerId: z.string().min(1, "Required"),
@@ -92,8 +117,12 @@ export default function AppointmentsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["appointments", statusFilter, search, page],
     queryFn: () => {
-      const params: Record<string, string | number> = { page, pageSize };
-      if (statusFilter !== "All") params.status = statusFilter;
+      const params: Record<string, string | number | boolean> = { page, pageSize };
+      if (statusFilter === "AtRisk") {
+        params.atRisk = true;
+      } else if (statusFilter !== "All") {
+        params.status = statusFilter;
+      }
       if (search) params.search = search;
       return api.get("/appointments", { params }).then((r) => r.data);
     },
@@ -134,19 +163,27 @@ export default function AppointmentsPage() {
 
       {/* Status filter tabs */}
       <div className="flex gap-1 mb-4 overflow-x-auto">
-        {statusFilters.map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors whitespace-nowrap ${
-              statusFilter === s
-                ? "bg-teal text-white"
-                : "text-ink-muted hover:text-ink hover:bg-cream-dark/60"
-            }`}
-          >
-            {s}
-          </button>
-        ))}
+        {statusFilters.map((s) => {
+          const isActive = statusFilter === s;
+          const isAtRisk = s === "AtRisk";
+          return (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors whitespace-nowrap ${
+                isActive
+                  ? isAtRisk
+                    ? "bg-red-500 text-white"
+                    : "bg-teal text-white"
+                  : isAtRisk
+                    ? "text-red-600 hover:bg-red-50"
+                    : "text-ink-muted hover:text-ink hover:bg-cream-dark/60"
+              }`}
+            >
+              {filterLabels[s] ?? s}
+            </button>
+          );
+        })}
       </div>
 
       {/* List */}
@@ -227,6 +264,7 @@ function AppointmentRow({
   const start = new Date(apt.startsAt);
   const end = new Date(apt.endsAt);
   const durationMin = Math.round((end.getTime() - start.getTime()) / 60000);
+  const isAtRisk = apt.status === "Scheduled" && apt.atRiskAlertedAt !== null;
 
   return (
     <div
@@ -234,6 +272,15 @@ function AppointmentRow({
       className="flex items-center justify-between px-4 py-3 hover:bg-cream-dark/30 transition-colors cursor-pointer"
     >
       <div className="flex items-center gap-4 min-w-0">
+        {isAtRisk && (
+          <span
+            className="relative flex w-2 h-2 shrink-0"
+            title="At risk — customer has not confirmed"
+          >
+            <span className="absolute inline-flex w-full h-full rounded-full bg-red-400 opacity-75 animate-ping" />
+            <span className="relative inline-flex w-2 h-2 rounded-full bg-red-500" />
+          </span>
+        )}
         <div className="min-w-0">
           <p className="text-[13px] font-medium text-ink truncate">{apt.customerName}</p>
           <p className="text-[11px] text-ink-faint">
@@ -247,7 +294,7 @@ function AppointmentRow({
           {start.toLocaleDateString()} ·{" "}
           {start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </span>
-        <StatusBadge status={apt.status} />
+        <StatusBadge status={apt.status} atRisk={isAtRisk} />
         <ChevronRight className="w-4 h-4 text-ink-faint" />
       </div>
     </div>
@@ -273,6 +320,12 @@ function AppointmentDetailPanel({
     queryFn: () => api.get(`/appointments/${appointmentId}`).then((r) => r.data),
   });
 
+  const { data: customer } = useQuery<CustomerDetail>({
+    queryKey: ["customer", apt?.customerId],
+    queryFn: () => api.get(`/customers/${apt!.customerId}`).then((r) => r.data),
+    enabled: Boolean(apt?.customerId),
+  });
+
   const actionMutation = useMutation({
     mutationFn: (action: string) => api.post(`/appointments/${appointmentId}/${action}`),
     onSuccess: (_data, action) => {
@@ -293,6 +346,7 @@ function AppointmentDetailPanel({
     );
   }
 
+  const isAtRisk = apt.status === "Scheduled" && apt.atRiskAlertedAt !== null;
   const start = new Date(apt.startsAt);
   const end = new Date(apt.endsAt);
   const durationMin = Math.round((end.getTime() - start.getTime()) / 60000);
@@ -318,7 +372,7 @@ function AppointmentDetailPanel({
         <div className="sticky top-0 bg-warm-white/90 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
             <h2 className="text-[16px] font-bold text-ink">{apt.customerName}</h2>
-            <StatusBadge status={apt.status} />
+            <StatusBadge status={apt.status} atRisk={isAtRisk} />
           </div>
           <button onClick={onClose} className="p-1 text-ink-faint hover:text-ink">
             <X className="w-5 h-5" />
@@ -326,6 +380,22 @@ function AppointmentDetailPanel({
         </div>
 
         <div className="p-6 space-y-6">
+          {/* At-risk callout */}
+          {isAtRisk && apt.atRiskAlertedAt && (
+            <div className="rounded-xl border border-red-200 bg-red-50/70 px-4 py-3 flex items-start gap-3">
+              <span className="relative flex w-2 h-2 shrink-0 mt-1.5">
+                <span className="absolute inline-flex w-full h-full rounded-full bg-red-400 opacity-75 animate-ping" />
+                <span className="relative inline-flex w-2 h-2 rounded-full bg-red-500" />
+              </span>
+              <div>
+                <p className="text-[12px] font-semibold text-red-700">Unconfirmed — call the customer</p>
+                <p className="text-[11px] text-red-600 mt-0.5">
+                  Flagged {new Date(apt.atRiskAlertedAt).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Time card */}
           <div className="rounded-xl bg-cream-dark/40 p-4 flex items-center gap-4">
             <div className="w-10 h-10 rounded-full bg-teal-wash border border-teal-border flex items-center justify-center">
@@ -347,6 +417,9 @@ function AppointmentDetailPanel({
               </p>
             </div>
           </div>
+
+          {/* Customer card */}
+          <CustomerCard customer={customer} />
 
           {/* Info grid */}
           <div className="grid grid-cols-2 gap-4">
@@ -623,7 +696,86 @@ function CreateAppointmentModal({
 /*  Shared UI                                                          */
 /* ------------------------------------------------------------------ */
 
-function StatusBadge({ status }: { status: string }) {
+function CustomerCard({ customer }: { customer: CustomerDetail | undefined }) {
+  if (!customer) {
+    return (
+      <div className="rounded-xl border border-border bg-warm-white p-4">
+        <p className="text-[11px] text-ink-faint">Loading customer...</p>
+      </div>
+    );
+  }
+
+  const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(" ");
+  const noShowPct = Math.round(Number(customer.noShowScore) * 100);
+  const isHighRisk = noShowPct >= 30;
+
+  return (
+    <div className="rounded-xl border border-border bg-warm-white p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-medium text-ink-faint uppercase tracking-wide">Customer</p>
+        <ConsentBadge status={customer.consentStatus} />
+      </div>
+      <p className="text-[14px] font-semibold text-ink">{fullName}</p>
+      <div className="grid grid-cols-1 gap-2">
+        <a
+          href={`tel:${customer.phone}`}
+          className="flex items-center gap-2 text-[13px] text-ink hover:text-teal transition-colors"
+        >
+          <Phone className="w-3.5 h-3.5 text-ink-faint" />
+          <span className="font-mono">{customer.phone}</span>
+        </a>
+        {customer.email && (
+          <a
+            href={`mailto:${customer.email}`}
+            className="flex items-center gap-2 text-[13px] text-ink hover:text-teal transition-colors truncate"
+          >
+            <Mail className="w-3.5 h-3.5 text-ink-faint" />
+            <span className="truncate">{customer.email}</span>
+          </a>
+        )}
+      </div>
+      <div className="flex items-center gap-2 pt-1 border-t border-border">
+        {isHighRisk ? (
+          <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+        ) : (
+          <ShieldCheck className="w-3.5 h-3.5 text-teal" />
+        )}
+        <p className={`text-[12px] ${isHighRisk ? "text-red-600" : "text-ink-muted"}`}>
+          No-show score: <span className="font-semibold">{noShowPct}%</span>
+        </p>
+      </div>
+      {customer.tags && (
+        <p className="text-[11px] text-ink-faint">Tags: {customer.tags}</p>
+      )}
+    </div>
+  );
+}
+
+function ConsentBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    OptedIn: "bg-teal-wash text-teal border-teal-border",
+    OptedOut: "bg-red-50 text-red-600 border-red-200",
+    Pending: "bg-amber-wash text-amber border-amber-border",
+  };
+  return (
+    <span
+      className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+        styles[status] ?? "bg-cream-dark text-ink-muted border-border"
+      }`}
+    >
+      {status}
+    </span>
+  );
+}
+
+function StatusBadge({ status, atRisk = false }: { status: string; atRisk?: boolean }) {
+  if (atRisk) {
+    return (
+      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-red-50 text-red-600 border-red-200">
+        At Risk
+      </span>
+    );
+  }
   const styles: Record<string, string> = {
     Scheduled: "bg-amber-wash text-amber border-amber-border",
     Confirmed: "bg-teal-wash text-teal border-teal-border",

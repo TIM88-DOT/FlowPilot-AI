@@ -21,4 +21,5 @@ public sealed record DashboardStatsDto(
     int TotalAppointmentsLast30Days,
     int MissedAppointmentsLast30Days,
     int ReviewsSentThisMonth,
-    int SmsSentThisMonth);
+    int SmsSentThisMonth,
+    int AtRiskCount);

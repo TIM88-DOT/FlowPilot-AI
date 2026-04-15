@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import {
   CalendarDays,
   MessageSquareText,
   UserX,
   Star,
+  AlertTriangle,
 } from "lucide-react";
 import api from "../../lib/api";
 
@@ -13,6 +15,7 @@ interface DashboardStats {
   missedAppointmentsLast30Days: number;
   reviewsSentThisMonth: number;
   smsSentThisMonth: number;
+  atRiskCount: number;
 }
 
 interface KPI {
@@ -20,9 +23,13 @@ interface KPI {
   value: string;
   sub: string;
   icon: typeof CalendarDays;
+  emphasis?: "danger";
+  href?: string;
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
+
   const appointments = useQuery({
     queryKey: ["appointments", "today"],
     queryFn: () =>
@@ -50,24 +57,37 @@ export default function DashboardPage() {
   const todayCount = appointments.data?.items?.length ?? 0;
   const totalCustomers = customers.data?.totalCount ?? 0;
 
+  const atRiskCount = stats.data?.atRiskCount ?? 0;
+
   const kpis: KPI[] = [
     {
       label: "Today's appointments",
       value: String(todayCount),
       sub: "Scheduled for today",
       icon: CalendarDays,
+      href: "/app/appointments",
     },
     {
-      label: "Total customers",
-      value: String(totalCustomers),
-      sub: "Active in your database",
-      icon: MessageSquareText,
+      label: "At-risk",
+      value: stats.data ? String(atRiskCount) : "...",
+      sub: atRiskCount > 0 ? "Unconfirmed — call the customer" : "No unconfirmed appointments",
+      icon: AlertTriangle,
+      emphasis: atRiskCount > 0 ? "danger" : undefined,
+      href: "/app/appointments?status=AtRisk",
     },
     {
       label: "No-show rate",
       value: stats.data ? `${stats.data.noShowRatePercent}%` : "...",
       sub: `Last 30 days (${stats.data?.missedAppointmentsLast30Days ?? 0}/${stats.data?.totalAppointmentsLast30Days ?? 0})`,
       icon: UserX,
+      href: "/app/appointments?status=NoShow",
+    },
+    {
+      label: "Total customers",
+      value: String(totalCustomers),
+      sub: "Active in your database",
+      icon: MessageSquareText,
+      href: "/app/customers",
     },
     {
       label: "Reviews sent",
@@ -85,20 +105,58 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {kpis.map((kpi) => (
-          <div
-            key={kpi.label}
-            className="rounded-2xl border border-border bg-warm-white p-5 hover:border-border-strong transition-colors"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[12px] text-ink-muted font-medium">{kpi.label}</span>
-              <kpi.icon className="w-4 h-4 text-ink-faint" strokeWidth={1.8} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        {kpis.map((kpi) => {
+          const isDanger = kpi.emphasis === "danger";
+          const clickable = Boolean(kpi.href);
+          const baseCls = `rounded-2xl border p-5 transition-colors text-left w-full ${
+            isDanger
+              ? "border-red-300 bg-red-50/70 hover:border-red-400"
+              : "border-border bg-warm-white hover:border-border-strong"
+          } ${clickable ? "cursor-pointer hover:shadow-sm" : ""}`;
+
+          const content = (
+            <>
+              <div className="flex items-center justify-between mb-3">
+                <span
+                  className={`text-[12px] font-medium ${
+                    isDanger ? "text-red-700" : "text-ink-muted"
+                  }`}
+                >
+                  {kpi.label}
+                </span>
+                <kpi.icon
+                  className={`w-4 h-4 ${isDanger ? "text-red-500" : "text-ink-faint"}`}
+                  strokeWidth={1.8}
+                />
+              </div>
+              <p
+                className={`text-[28px] font-bold leading-none mb-1 ${
+                  isDanger ? "text-red-700" : "text-ink"
+                }`}
+              >
+                {kpi.value}
+              </p>
+              <p className={`text-[11px] ${isDanger ? "text-red-600" : "text-ink-faint"}`}>
+                {kpi.sub}
+              </p>
+            </>
+          );
+
+          if (kpi.href) {
+            return (
+              <button key={kpi.label} type="button" onClick={() => navigate(kpi.href!)} className={baseCls}>
+                {content}
+              </button>
+            );
+          }
+
+          return (
+            <div key={kpi.label} className={baseCls}>
+              {content}
             </div>
-            <p className="text-[28px] font-bold text-ink leading-none mb-1">{kpi.value}</p>
-            <p className="text-[11px] text-ink-faint">{kpi.sub}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Recent appointments */}

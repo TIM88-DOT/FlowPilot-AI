@@ -30,6 +30,7 @@ public sealed record AppointmentQuery(
     DateTime? DateFrom = null,
     DateTime? DateTo = null,
     string? Search = null,
+    bool? AtRisk = null,
     int Page = 1,
     int PageSize = 25);
 
@@ -47,6 +48,7 @@ public sealed record AppointmentDto(
     DateTime EndsAt,
     string? ServiceName,
     string? Notes,
+    DateTime? AtRiskAlertedAt,
     DateTime CreatedAt,
     DateTime UpdatedAt);
 

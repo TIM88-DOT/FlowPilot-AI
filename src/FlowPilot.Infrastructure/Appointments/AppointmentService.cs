@@ -101,6 +101,13 @@ public sealed class AppointmentService : IAppointmentService
         if (query.DateTo.HasValue)
             q = q.Where(a => a.StartsAt <= query.DateTo.Value);
 
+        // At-risk pseudo-filter: Scheduled appointments the lifecycle worker flagged as unconfirmed.
+        // Overrides any Status filter the caller may have passed.
+        if (query.AtRisk == true)
+        {
+            q = q.Where(a => a.Status == AppointmentStatus.Scheduled && a.AtRiskAlertedAt != null);
+        }
+
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             string term = query.Search.Trim().ToLower();
@@ -112,8 +119,10 @@ public sealed class AppointmentService : IAppointmentService
 
         int totalCount = await q.CountAsync(cancellationToken);
 
+        // Sort at-risk appointments first so staff can act on them quickly, then newest StartsAt.
         List<AppointmentDto> items = await q
-            .OrderByDescending(a => a.StartsAt)
+            .OrderByDescending(a => a.Status == AppointmentStatus.Scheduled && a.AtRiskAlertedAt != null)
+            .ThenByDescending(a => a.StartsAt)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .Select(a => new AppointmentDto(
@@ -121,7 +130,7 @@ public sealed class AppointmentService : IAppointmentService
                 a.Customer.FirstName + (a.Customer.LastName != null ? " " + a.Customer.LastName : ""),
                 a.StaffUserId, a.ExternalId,
                 a.Status.ToString(), a.StartsAt, a.EndsAt,
-                a.ServiceName, a.Notes, a.CreatedAt, a.UpdatedAt))
+                a.ServiceName, a.Notes, a.AtRiskAlertedAt, a.CreatedAt, a.UpdatedAt))
             .ToListAsync(cancellationToken);
 
         return Result.Success(new PagedResult<AppointmentDto>(items, totalCount, query.Page, query.PageSize));
@@ -350,7 +359,7 @@ public sealed class AppointmentService : IAppointmentService
             a.Customer.FirstName + (a.Customer.LastName != null ? " " + a.Customer.LastName : ""),
             a.StaffUserId, a.ExternalId,
             a.Status.ToString(), a.StartsAt, a.EndsAt,
-            a.ServiceName, a.Notes, a.CreatedAt, a.UpdatedAt);
+            a.ServiceName, a.Notes, a.AtRiskAlertedAt, a.CreatedAt, a.UpdatedAt);
 
     /// <summary>
     /// Maps an appointment to DTO, loading the Customer if not already loaded.

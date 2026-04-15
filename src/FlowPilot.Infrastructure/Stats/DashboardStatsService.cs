@@ -62,11 +62,21 @@ public sealed class DashboardStatsService : IDashboardStatsService
             .Select(u => u.SmsSent)
             .FirstOrDefaultAsync(cancellationToken);
 
+        // At-risk: Scheduled appointments the lifecycle worker flagged as still unconfirmed.
+        // We do NOT filter on StartsAt > now — once the appointment passes its start time it
+        // is still "at risk" until the lifecycle worker transitions it to Missed (after EndsAt + grace).
+        // Filtering on StartsAt would make the KPI briefly drop to 0 between StartsAt and the Missed transition.
+        int atRiskCount = await _db.Appointments
+            .AsNoTracking()
+            .CountAsync(a => a.Status == AppointmentStatus.Scheduled
+                             && a.AtRiskAlertedAt != null, cancellationToken);
+
         return Result.Success(new DashboardStatsDto(
             NoShowRatePercent: noShowRate,
             TotalAppointmentsLast30Days: totalAppointments,
             MissedAppointmentsLast30Days: missedAppointments,
             ReviewsSentThisMonth: reviewsSent,
-            SmsSentThisMonth: smsSent));
+            SmsSentThisMonth: smsSent,
+            AtRiskCount: atRiskCount));
     }
 }

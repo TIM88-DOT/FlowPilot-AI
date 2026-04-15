@@ -61,6 +61,7 @@ public sealed class ScheduledMessageDispatcher : BackgroundService
         List<ScheduledMessage> dueMessages = await db.ScheduledMessages
             .IgnoreQueryFilters() // Worker operates across all tenants
             .Include(sm => sm.Customer)
+            .Include(sm => sm.Appointment)
             .Where(sm => sm.Status == ScheduledMessageStatus.Pending
                          && sm.ScheduledAt <= DateTime.UtcNow
                          && !sm.IsDeleted)
@@ -104,6 +105,19 @@ public sealed class ScheduledMessageDispatcher : BackgroundService
             _logger.LogInformation(
                 "Skipping ScheduledMessage {MessageId} — customer {CustomerId} consent is {Status}",
                 scheduledMessage.Id, scheduledMessage.CustomerId, scheduledMessage.Customer.ConsentStatus);
+
+            scheduledMessage.Status = ScheduledMessageStatus.Cancelled;
+            return;
+        }
+
+        // Skip if the appointment is no longer in Scheduled state — the customer already
+        // confirmed, rescheduled, cancelled, or the appointment was marked missed/completed.
+        // Prevents firing a second reminder when it's no longer relevant.
+        if (scheduledMessage.Appointment.Status != AppointmentStatus.Scheduled)
+        {
+            _logger.LogInformation(
+                "Skipping ScheduledMessage {MessageId} — appointment {AppointmentId} is {Status}",
+                scheduledMessage.Id, scheduledMessage.AppointmentId, scheduledMessage.Appointment.Status);
 
             scheduledMessage.Status = ScheduledMessageStatus.Cancelled;
             return;

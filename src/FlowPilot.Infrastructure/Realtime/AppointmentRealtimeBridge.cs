@@ -13,7 +13,8 @@ namespace FlowPilot.Infrastructure.Realtime;
 /// </summary>
 public sealed class AppointmentRealtimeBridge :
     INotificationHandler<AppointmentStatusChangedEvent>,
-    INotificationHandler<AppointmentCreatedEvent>
+    INotificationHandler<AppointmentCreatedEvent>,
+    INotificationHandler<AppointmentAtRiskEvent>
 {
     private const string HubName = "appointments";
 
@@ -56,6 +57,25 @@ public sealed class AppointmentRealtimeBridge :
             notification.TenantId,
             HubName,
             "AppointmentCreated",
+            new
+            {
+                notification.AppointmentId,
+                notification.CustomerId,
+                notification.StartsAt
+            },
+            cancellationToken);
+    }
+
+    public Task Handle(AppointmentAtRiskEvent notification, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation(
+            "Realtime fan-out: AppointmentAtRisk {AppointmentId} (tenant {TenantId})",
+            notification.AppointmentId, notification.TenantId);
+
+        return _notifier.PublishAsync(
+            notification.TenantId,
+            HubName,
+            "AppointmentAtRisk",
             new
             {
                 notification.AppointmentId,
