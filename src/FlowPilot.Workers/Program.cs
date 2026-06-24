@@ -1,4 +1,5 @@
 using FlowPilot.Application.Agents;
+using FlowPilot.Application.Appointments;
 using FlowPilot.Application.Messaging;
 using FlowPilot.Application.Realtime;
 using FlowPilot.Infrastructure.Appointments;
@@ -43,6 +44,10 @@ try
     // MessagingService + TemplateRenderer — needed by AppointmentBookedSmsHandler (MediatR)
     builder.Services.AddScoped<IMessagingService, MessagingService>();
     builder.Services.AddScoped<ITemplateRenderer, TemplateRenderer>();
+
+    // Lifecycle scan + reminder dispatch logic the hosted workers delegate to
+    builder.Services.AddScoped<IAppointmentLifecycleService, AppointmentLifecycleService>();
+    builder.Services.AddScoped<IReminderDispatchService, ReminderDispatchService>();
 
     // No-op agent orchestrator — AI agents require Azure OpenAI (API host only)
     builder.Services.AddScoped<IAgentOrchestrator, NoOpAgentOrchestrator>();

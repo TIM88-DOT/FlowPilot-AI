@@ -86,6 +86,7 @@ builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IAppointmentService, AppointmentService>();
+builder.Services.AddScoped<IAppointmentLifecycleService, AppointmentLifecycleService>();
 builder.Services.AddScoped<IServiceService, ServiceService>();
 builder.Services.AddScoped<ITenantSettingsService, TenantSettingsService>();
 builder.Services.AddScoped<IDashboardStatsService, DashboardStatsService>();
@@ -101,6 +102,7 @@ else
     builder.Services.AddScoped<ISmsProvider, FakeSmsProvider>();
 builder.Services.AddScoped<ITemplateRenderer, TemplateRenderer>();
 builder.Services.AddScoped<IMessagingService, MessagingService>();
+builder.Services.AddScoped<IReminderDispatchService, ReminderDispatchService>();
 builder.Services.AddScoped<ITemplateService, TemplateService>();
 
 // ---------------------------------------------------------------------------
