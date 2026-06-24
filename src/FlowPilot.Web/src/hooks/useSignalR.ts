@@ -3,10 +3,36 @@ import {
   HubConnectionBuilder,
   HubConnection,
   LogLevel,
+  type ILogger,
 } from "@microsoft/signalr";
 import { getAccessToken } from "../lib/api";
 
 type EventHandler = (...args: unknown[]) => void;
+
+/**
+ * SignalR logger that demotes the expected "aborted during negotiation" noise
+ * (fired on intentional navigation / React Strict Mode double-mount) to debug
+ * level, while forwarding all genuine warnings and errors to the console so
+ * real hub failures still surface.
+ */
+const NEGOTIATION_ABORT = /stopped during negotiation|Failed to start the connection/i;
+
+const signalRLogger: ILogger = {
+  log(logLevel, message) {
+    if (logLevel < LogLevel.Warning) return;
+
+    if (NEGOTIATION_ABORT.test(message)) {
+      console.debug("[SignalR] connection aborted (navigation/strict-mode):", message);
+      return;
+    }
+
+    if (logLevel >= LogLevel.Error) {
+      console.error("[SignalR]", message);
+    } else {
+      console.warn("[SignalR]", message);
+    }
+  },
+};
 
 /**
  * Manages a SignalR hub connection with automatic reconnection.
@@ -24,7 +50,7 @@ export function useSignalR(hubUrl: string) {
         accessTokenFactory: () => getAccessToken() ?? "",
       })
       .withAutomaticReconnect([0, 2_000, 5_000, 10_000, 30_000])
-      .configureLogging(LogLevel.Warning)
+      .configureLogging(signalRLogger)
       .build();
 
     connectionRef.current = connection;

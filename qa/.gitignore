@@ -1,0 +1,6 @@
+node_modules/
+package-lock.json
+# Generated QA artifacts — keep the folders, ignore the contents
+reports/*.md
+reports/screenshots/
+!reports/.gitkeep

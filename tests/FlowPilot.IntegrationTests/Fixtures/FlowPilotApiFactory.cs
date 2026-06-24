@@ -1,4 +1,6 @@
+using FlowPilot.Application.Appointments;
 using FlowPilot.Infrastructure.Persistence;
+using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -37,6 +39,11 @@ public class FlowPilotApiFactory : WebApplicationFactory<Program>, IAsyncLifetim
             {
                 options.UseNpgsql(ConnectionString);
             });
+
+            // Test-only spy on AppointmentAtRiskEvent — added alongside the real handler so
+            // tests can assert the at-risk event fires exactly once per appointment.
+            services.AddSingleton<AtRiskEventSpy>();
+            services.AddTransient<INotificationHandler<AppointmentAtRiskEvent>, SpyAtRiskHandler>();
         });
     }
 

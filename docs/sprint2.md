@@ -70,8 +70,8 @@ Industry-standard two-touch reminder flow + staff-facing at-risk alert. Closes t
 - [x] `DashboardStatsService` returns an `AtRiskCount` KPI (upcoming Scheduled with `AtRiskAlertedAt != null`).
 - [x] Web dashboard: red "At-risk" KPI card + red-dot badge on each at-risk appointment row. `useAppointmentEvents` invalidates queries on `AppointmentAtRisk` push.
 - [ ] EF migration `AddAppointmentAtRiskAlert` — add nullable `at_risk_alerted_at` column to `appointments`. **Action required:** stop services, then `dotnet ef migrations add AddAppointmentAtRiskAlert --project src/FlowPilot.Infrastructure --startup-project src/FlowPilot.Api && dotnet ef database update`.
-- [ ] Integration test: create same-day appointment → time-skip inside window → assert `AtRiskAlertedAt` set exactly once, event published exactly once.
-- [ ] Integration test: first reminder fires → customer confirms → second reminder dispatcher run marks the T−3h message as `Cancelled` instead of sending.
+- [x] Integration test: create same-day appointment → time-skip inside window → assert `AtRiskAlertedAt` set exactly once, event published exactly once. (`AppointmentLifecycleTests.ScanAtRisk_RunTwice_FlagsOnceAndPublishesEventOnce`)
+- [x] Integration test: first reminder fires → customer confirms → second reminder dispatcher run marks the T−3h message as `Cancelled` instead of sending. (`AppointmentLifecycleTests.DispatchDue_AfterConfirm_CancelsReminderInsteadOfSending`)
 
 ---
 

@@ -25,6 +25,11 @@ public sealed class AuthService : IAuthService
     /// <inheritdoc />
     public async Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
     {
+        // Deterministic input validation BEFORE any work — malformed payloads must return 400, not 500
+        Result<AuthResponse> validation = ValidateRegisterRequest(request);
+        if (validation.IsFailure)
+            return validation;
+
         // Check for duplicate email across all tenants (ignore query filters for global uniqueness)
         bool emailExists = await _db.Users
             .IgnoreQueryFilters() // Global uniqueness check — email must be unique across all tenants
@@ -323,6 +328,36 @@ public sealed class AuthService : IAuthService
         templates.Add(cancellation);
 
         return templates;
+    }
+
+    // Pragmatic email shape check — full RFC validation is intentionally avoided.
+    private static readonly Regex EmailRegex = new(
+        @"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private const int MinPasswordLength = 8;
+
+    /// <summary>
+    /// Validates required registration fields deterministically so malformed payloads
+    /// fail with a 400-mapped <see cref="Result"/> instead of throwing deeper in the pipeline.
+    /// </summary>
+    private static Result<AuthResponse> ValidateRegisterRequest(RegisterRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email) || !EmailRegex.IsMatch(request.Email))
+            return Result.Failure<AuthResponse>(Error.Validation("Auth.InvalidEmail", "A valid email address is required."));
+
+        if (string.IsNullOrEmpty(request.Password) || request.Password.Length < MinPasswordLength)
+            return Result.Failure<AuthResponse>(Error.Validation("Auth.WeakPassword", $"Password must be at least {MinPasswordLength} characters."));
+
+        if (string.IsNullOrWhiteSpace(request.FirstName))
+            return Result.Failure<AuthResponse>(Error.Validation("Auth.MissingFirstName", "First name is required."));
+
+        if (string.IsNullOrWhiteSpace(request.LastName))
+            return Result.Failure<AuthResponse>(Error.Validation("Auth.MissingLastName", "Last name is required."));
+
+        if (string.IsNullOrWhiteSpace(request.BusinessName))
+            return Result.Failure<AuthResponse>(Error.Validation("Auth.MissingBusinessName", "Business name is required."));
+
+        return Result.Success<AuthResponse>(null!); // Success sentinel — caller only checks IsFailure
     }
 
     /// <summary>

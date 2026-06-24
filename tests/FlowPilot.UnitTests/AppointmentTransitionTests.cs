@@ -1,4 +1,5 @@
 using FlowPilot.Application.Appointments;
+using FlowPilot.Application.Common;
 using FlowPilot.Domain.Entities;
 using FlowPilot.Domain.Enums;
 using FlowPilot.Infrastructure.Appointments;
@@ -16,13 +17,14 @@ public sealed class AppointmentTransitionTests : IDisposable
 {
     private readonly TestDbFixture _fixture = new();
     private readonly IMediator _mediator = Substitute.For<IMediator>();
+    private readonly IBackgroundEventPublisher _backgroundEvents = Substitute.For<IBackgroundEventPublisher>();
     private readonly AppointmentService _sut;
     private readonly AppDbContext _db;
 
     public AppointmentTransitionTests()
     {
         _db = _fixture.CreateContext();
-        _sut = new AppointmentService(_db, _fixture.CurrentTenant, _mediator);
+        _sut = new AppointmentService(_db, _fixture.CurrentTenant, _mediator, _backgroundEvents);
     }
 
     public void Dispose()

@@ -1,6 +1,5 @@
 using FlowPilot.Application.Agents;
 using FlowPilot.Application.Appointments;
-using FlowPilot.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -15,7 +14,7 @@ namespace FlowPilot.Infrastructure.Agents;
 /// - 30-day cooldown must not be active (check_review_cooldown)
 /// - Customer must be opted-in (enforced by send_sms → MessagingService consent gate)
 /// </summary>
-public sealed class ReviewRecoveryAgent : INotificationHandler<AppointmentStatusChangedEvent>
+public sealed class ReviewRecoveryAgent : INotificationHandler<AppointmentCompletedEvent>
 {
     private readonly IAgentOrchestrator _orchestrator;
     private readonly ILogger<ReviewRecoveryAgent> _logger;
@@ -61,12 +60,8 @@ public sealed class ReviewRecoveryAgent : INotificationHandler<AppointmentStatus
         _logger = logger;
     }
 
-    public async Task Handle(AppointmentStatusChangedEvent notification, CancellationToken cancellationToken)
+    public async Task Handle(AppointmentCompletedEvent notification, CancellationToken cancellationToken)
     {
-        // Only trigger on completion
-        if (notification.NewStatus != AppointmentStatus.Completed)
-            return;
-
         _logger.LogInformation(
             "ReviewRecoveryAgent triggered for completed appointment {AppointmentId}, customer {CustomerId}",
             notification.AppointmentId, notification.CustomerId);

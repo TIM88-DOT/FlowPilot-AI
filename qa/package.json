@@ -1,0 +1,14 @@
+{
+  "name": "flowpilot-qa",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Autonomous QA harness — Playwright UI journeys + API probes against the running FlowPilot/Relora app.",
+  "scripts": {
+    "smoke": "node scenarios/smoke.mjs",
+    "install:browser": "playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}

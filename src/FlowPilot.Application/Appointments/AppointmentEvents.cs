@@ -24,6 +24,17 @@ public sealed record AppointmentStatusChangedEvent(
     AppointmentStatus NewStatus) : INotification;
 
 /// <summary>
+/// Published when an appointment transitions to Completed. Handled off the request thread by the
+/// review-recovery agent (LLM + outbound SMS), so its latency/failures never affect the
+/// complete request. Distinct from <see cref="AppointmentStatusChangedEvent"/>, whose handlers
+/// (audit, realtime) stay synchronous.
+/// </summary>
+public sealed record AppointmentCompletedEvent(
+    Guid AppointmentId,
+    Guid CustomerId,
+    Guid TenantId) : INotification;
+
+/// <summary>
 /// Published when an appointment is marked as Missed (no-show).
 /// Downstream handlers may send a "we missed you" SMS, update analytics, or trigger no-show fees.
 /// </summary>

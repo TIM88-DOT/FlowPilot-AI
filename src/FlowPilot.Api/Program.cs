@@ -2,9 +2,11 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.ClientModel;
 using Azure.AI.OpenAI;
+using FlowPilot.Api.BackgroundEvents;
 using FlowPilot.Api.Hubs;
 using FlowPilot.Api.Middleware;
 using FlowPilot.Api.Services;
+using FlowPilot.Application.Common;
 using FlowPilot.Application.Agents;
 using FlowPilot.Application.Auth;
 using FlowPilot.Application.Appointments;
@@ -65,6 +67,13 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 // ---------------------------------------------------------------------------
+// Problem Details — consistent RFC 7807 error bodies; GlobalExceptionHandler
+// maps malformed-input (BadHttpRequestException) to 400 instead of leaking 500.
+// ---------------------------------------------------------------------------
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+// ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
@@ -86,6 +95,7 @@ builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IAppointmentService, AppointmentService>();
+builder.Services.AddScoped<IAppointmentLifecycleService, AppointmentLifecycleService>();
 builder.Services.AddScoped<IServiceService, ServiceService>();
 builder.Services.AddScoped<ITenantSettingsService, TenantSettingsService>();
 builder.Services.AddScoped<IDashboardStatsService, DashboardStatsService>();
@@ -101,6 +111,7 @@ else
     builder.Services.AddScoped<ISmsProvider, FakeSmsProvider>();
 builder.Services.AddScoped<ITemplateRenderer, TemplateRenderer>();
 builder.Services.AddScoped<IMessagingService, MessagingService>();
+builder.Services.AddScoped<IReminderDispatchService, ReminderDispatchService>();
 builder.Services.AddScoped<ITemplateService, TemplateService>();
 
 // ---------------------------------------------------------------------------
@@ -122,6 +133,15 @@ builder.Services.AddSignalR();
 // API and relays notifications into the SignalR hubs.
 builder.Services.AddScoped<IRealtimeNotifier, PostgresRealtimeNotifier>();
 builder.Services.AddHostedService<PostgresRealtimeListener>();
+
+// ---------------------------------------------------------------------------
+// Background domain-event dispatch — keeps slow/fragile handlers (LLM agents,
+// outbound SMS) off the request thread so they can never block or fail the
+// originating request. In-process only; durable dispatch arrives with Service Bus.
+// ---------------------------------------------------------------------------
+builder.Services.AddSingleton<IBackgroundEventQueue, BackgroundEventQueue>();
+builder.Services.AddScoped<IBackgroundEventPublisher, BackgroundEventPublisher>();
+builder.Services.AddHostedService<BackgroundEventProcessor>();
 
 // ---------------------------------------------------------------------------
 // AI Agents — Azure OpenAI + Tool Registry + Orchestrator
@@ -232,6 +252,8 @@ var app = builder.Build();
 // ---------------------------------------------------------------------------
 // Middleware pipeline
 // ---------------------------------------------------------------------------
+// First in the pipeline so it wraps endpoint execution AND minimal-API model binding.
+app.UseExceptionHandler();
 app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 app.UseAuthentication();
@@ -600,7 +622,10 @@ RouteGroupBuilder twilioGroup = app.MapGroup("/api/webhooks/twilio")
 
 twilioGroup.MapPost("/sms/inbound", async (HttpRequest request, AppDbContext db, IMessagingService messagingService, CancellationToken ct) =>
 {
-    // Twilio sends application/x-www-form-urlencoded
+    // Twilio sends application/x-www-form-urlencoded — reject anything else with 400 (ReadFormAsync throws otherwise)
+    if (!request.HasFormContentType)
+        return Results.BadRequest(new { error = "Expected application/x-www-form-urlencoded body." });
+
     IFormCollection form = await request.ReadFormAsync(ct);
     string messageSid = form["MessageSid"].ToString();
     string from = form["From"].ToString();
@@ -630,6 +655,10 @@ twilioGroup.MapPost("/sms/inbound", async (HttpRequest request, AppDbContext db,
 
 twilioGroup.MapPost("/sms/status", async (HttpRequest request, AppDbContext db, IMessagingService messagingService, CancellationToken ct) =>
 {
+    // Twilio sends application/x-www-form-urlencoded — reject anything else with 400 (ReadFormAsync throws otherwise)
+    if (!request.HasFormContentType)
+        return Results.BadRequest(new { error = "Expected application/x-www-form-urlencoded body." });
+
     IFormCollection form = await request.ReadFormAsync(ct);
     string messageSid = form["MessageSid"].ToString();
     string status = form["MessageStatus"].ToString();
