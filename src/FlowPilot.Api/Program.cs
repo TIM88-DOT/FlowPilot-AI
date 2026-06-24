@@ -2,9 +2,11 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.ClientModel;
 using Azure.AI.OpenAI;
+using FlowPilot.Api.BackgroundEvents;
 using FlowPilot.Api.Hubs;
 using FlowPilot.Api.Middleware;
 using FlowPilot.Api.Services;
+using FlowPilot.Application.Common;
 using FlowPilot.Application.Agents;
 using FlowPilot.Application.Auth;
 using FlowPilot.Application.Appointments;
@@ -131,6 +133,15 @@ builder.Services.AddSignalR();
 // API and relays notifications into the SignalR hubs.
 builder.Services.AddScoped<IRealtimeNotifier, PostgresRealtimeNotifier>();
 builder.Services.AddHostedService<PostgresRealtimeListener>();
+
+// ---------------------------------------------------------------------------
+// Background domain-event dispatch — keeps slow/fragile handlers (LLM agents,
+// outbound SMS) off the request thread so they can never block or fail the
+// originating request. In-process only; durable dispatch arrives with Service Bus.
+// ---------------------------------------------------------------------------
+builder.Services.AddSingleton<IBackgroundEventQueue, BackgroundEventQueue>();
+builder.Services.AddScoped<IBackgroundEventPublisher, BackgroundEventPublisher>();
+builder.Services.AddHostedService<BackgroundEventProcessor>();
 
 // ---------------------------------------------------------------------------
 // AI Agents — Azure OpenAI + Tool Registry + Orchestrator

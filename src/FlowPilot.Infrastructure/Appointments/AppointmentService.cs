@@ -1,4 +1,5 @@
 using FlowPilot.Application.Appointments;
+using FlowPilot.Application.Common;
 using FlowPilot.Application.Customers;
 using FlowPilot.Domain.Entities;
 using FlowPilot.Domain.Enums;
@@ -19,6 +20,7 @@ public sealed class AppointmentService : IAppointmentService
     private readonly AppDbContext _db;
     private readonly ICurrentTenant _currentTenant;
     private readonly IMediator _mediator;
+    private readonly IBackgroundEventPublisher _backgroundEvents;
 
     /// <summary>
     /// Valid status transitions enforced by the domain.
@@ -34,11 +36,16 @@ public sealed class AppointmentService : IAppointmentService
         [AppointmentStatus.Rescheduled] = [],
     };
 
-    public AppointmentService(AppDbContext db, ICurrentTenant currentTenant, IMediator mediator)
+    public AppointmentService(
+        AppDbContext db,
+        ICurrentTenant currentTenant,
+        IMediator mediator,
+        IBackgroundEventPublisher backgroundEvents)
     {
         _db = db;
         _currentTenant = currentTenant;
         _mediator = mediator;
+        _backgroundEvents = backgroundEvents;
     }
 
     /// <inheritdoc />
@@ -69,8 +76,10 @@ public sealed class AppointmentService : IAppointmentService
         _db.Appointments.Add(appointment);
         await _db.SaveChangesAsync(cancellationToken);
 
-        await _mediator.Publish(new AppointmentCreatedEvent(
-            appointment.Id, appointment.CustomerId, _currentTenant.TenantId, appointment.StartsAt), cancellationToken);
+        // Off-thread: reminder-optimization agent (LLM) + booking-confirmation SMS run on a
+        // background scope so their latency/failures never block or fail this request.
+        _backgroundEvents.Enqueue(new AppointmentCreatedEvent(
+            appointment.Id, appointment.CustomerId, _currentTenant.TenantId, appointment.StartsAt));
 
         await _mediator.Publish(new AppointmentStatusChangedEvent(
             appointment.Id, appointment.CustomerId, _currentTenant.TenantId, _currentTenant.UserId,
@@ -240,9 +249,9 @@ public sealed class AppointmentService : IAppointmentService
             appointment.Id, appointment.CustomerId, _currentTenant.TenantId, _currentTenant.UserId,
             oldStatus, AppointmentStatus.Rescheduled), cancellationToken);
 
-        // Publish events for new appointment (created + scheduled)
-        await _mediator.Publish(new AppointmentCreatedEvent(
-            newAppointment.Id, newAppointment.CustomerId, _currentTenant.TenantId, newAppointment.StartsAt), cancellationToken);
+        // Publish events for new appointment (created off-thread + scheduled synchronously)
+        _backgroundEvents.Enqueue(new AppointmentCreatedEvent(
+            newAppointment.Id, newAppointment.CustomerId, _currentTenant.TenantId, newAppointment.StartsAt));
 
         await _mediator.Publish(new AppointmentStatusChangedEvent(
             newAppointment.Id, newAppointment.CustomerId, _currentTenant.TenantId, _currentTenant.UserId,
@@ -290,8 +299,10 @@ public sealed class AppointmentService : IAppointmentService
         _db.Appointments.Add(appointment);
         await _db.SaveChangesAsync(cancellationToken);
 
-        await _mediator.Publish(new AppointmentCreatedEvent(
-            appointment.Id, appointment.CustomerId, _currentTenant.TenantId, appointment.StartsAt), cancellationToken);
+        // Off-thread: reminder-optimization agent (LLM) + booking-confirmation SMS run on a
+        // background scope so their latency/failures never block or fail this request.
+        _backgroundEvents.Enqueue(new AppointmentCreatedEvent(
+            appointment.Id, appointment.CustomerId, _currentTenant.TenantId, appointment.StartsAt));
 
         await _mediator.Publish(new AppointmentStatusChangedEvent(
             appointment.Id, appointment.CustomerId, _currentTenant.TenantId, _currentTenant.UserId,

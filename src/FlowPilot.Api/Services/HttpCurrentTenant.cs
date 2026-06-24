@@ -4,7 +4,8 @@ namespace FlowPilot.Api.Services;
 
 /// <summary>
 /// Resolves the current tenant from JWT claims in the HTTP context.
-/// Falls back to empty GUIDs when no authenticated user is present (e.g., design-time, migrations).
+/// When no HTTP request is in scope (e.g. a background event replay), falls back to the
+/// <see cref="AmbientTenant"/> override. Falls back to empty GUIDs otherwise (design-time, migrations).
 /// </summary>
 public class HttpCurrentTenant : ICurrentTenant
 {
@@ -20,13 +21,15 @@ public class HttpCurrentTenant : ICurrentTenant
             ? tenantId
             : _httpContextAccessor.HttpContext?.Items["PublicTenantId"] is Guid publicTenantId
                 ? publicTenantId
-                : Guid.Empty;
+                : AmbientTenant.Current?.TenantId ?? Guid.Empty;
 
     public Guid UserId =>
         Guid.TryParse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value, out Guid userId)
             ? userId
-            : Guid.Empty;
+            : AmbientTenant.Current?.UserId ?? Guid.Empty;
 
     public string UserRole =>
-        _httpContextAccessor.HttpContext?.User?.FindFirst("role")?.Value ?? string.Empty;
+        _httpContextAccessor.HttpContext?.User?.FindFirst("role")?.Value
+            ?? AmbientTenant.Current?.UserRole
+            ?? string.Empty;
 }
