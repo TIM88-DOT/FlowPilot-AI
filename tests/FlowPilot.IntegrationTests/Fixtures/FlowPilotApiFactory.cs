@@ -26,6 +26,10 @@ public class FlowPilotApiFactory : WebApplicationFactory<Program>, IAsyncLifetim
         // Force FakeSmsProvider in tests — appsettings may default to "Twilio"
         builder.UseSetting("SmsProvider", "Fake");
 
+        // Supply a JWT signing key here so the tests are self-contained and do not
+        // depend on appsettings.Development.json (gitignored, and absent in CI).
+        builder.UseSetting("Jwt:Secret", "IntegrationTests_JwtSigningKey_AtLeast32CharsLong!!");
+
         builder.ConfigureServices(services =>
         {
             // Remove the existing AppDbContext registration

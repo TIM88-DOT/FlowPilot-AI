@@ -14,6 +14,9 @@
 .env
 **/appsettings.Production.json
 **/appsettings.Staging.json
+# Local dev overrides hold a JWT signing key + DB password — keep out of the repo.
+# Copy appsettings.Development.json.example → appsettings.Development.json and fill in.
+**/appsettings.Development.json
 **/secrets/
 
 # Claude Code local

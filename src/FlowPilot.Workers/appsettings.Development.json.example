@@ -1,0 +1,5 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=flowpilot_dev;Username=flowpilot;Password=flowpilot_dev_pass"
+  }
+}
