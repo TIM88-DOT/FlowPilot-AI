@@ -260,7 +260,8 @@ try {
   // =========================================================================
   console.log("\n=== 6. Customer CRUD ===");
 
-  const custPhone = randPhone();
+  // Use a known-valid NANP format: +1647XXX + 4 digits (Toronto 647 area code)
+  const custPhone = "+1647" + String(Math.floor(2000000 + Math.random() * 7999999));
   const custRes = await apiFetch("/api/v1/customers", {
     method: "POST",
     token: tenantA.accessToken,
@@ -278,7 +279,8 @@ try {
     title: "POST /customers creates a customer",
     status: custRes.status === 201 && customerIdA ? "PASS" : "FAIL",
     severity: "Critical",
-    notes: `status=${custRes.status} id=${customerIdA}`,
+    notes: `status=${custRes.status} id=${customerIdA} phone=${custPhone}`,
+    evidence: custRes.status !== 201 ? JSON.stringify(custRes.json ?? custRes.text ?? "").slice(0, 200) : "",
   });
 
   // Find-or-create by same phone — API may return 200 (found), 201 (created), or 409 (conflict)
@@ -615,7 +617,7 @@ try {
   failedRequests = b.failedRequests;
 
   // ── 13a. Landing page ──────────────────────────────────────────────────────
-  const landingResp = await page.goto(`${WEB_BASE}/`, { waitUntil: "networkidle" });
+  const landingResp = await page.goto(`${WEB_BASE}/`, { waitUntil: "domcontentloaded" });
   const landingShot = await shot(run, page, "landing");
   record(run, {
     id: "UI-LAND-01",
@@ -694,7 +696,7 @@ try {
   // Open a completely fresh browser context (no cookies) to test unauthenticated access
   const freshCtx = await browser.newContext({ viewport: { width: 1366, height: 900 } });
   const freshPage = await freshCtx.newPage();
-  await freshPage.goto(`${WEB_BASE}/app/customers`, { waitUntil: "networkidle" });
+  await freshPage.goto(`${WEB_BASE}/app/customers`, { waitUntil: "domcontentloaded" });
   await sleep(1000);
   const protectedShot = await shot(run, freshPage, "protected-route-redirect");
   record(run, {
@@ -710,7 +712,8 @@ try {
 
   // ── 13f. Login with bad credentials ───────────────────────────────────────
   console.log("  13f. Bad credentials...");
-  await page.goto(`${WEB_BASE}/login`, { waitUntil: "networkidle" });
+  await page.goto(`${WEB_BASE}/login`, { waitUntil: "domcontentloaded", timeout: 15000 });
+  await sleep(800);
   // Login placeholders per LoginPage.tsx: "you@business.com" and "••••••••"
   await page.getByPlaceholder("you@business.com").fill("bad@bad.com");
   await page.getByPlaceholder("••••••••").fill("wrongpassword");
@@ -729,7 +732,8 @@ try {
 
   // ── 13g. Login happy path ─────────────────────────────────────────────────
   console.log("  13g. Login happy path...");
-  await page.goto(`${WEB_BASE}/login`, { waitUntil: "networkidle" });
+  await page.goto(`${WEB_BASE}/login`, { waitUntil: "domcontentloaded", timeout: 15000 });
+  await sleep(600);
   await page.getByPlaceholder("you@business.com").fill(uiCreds.email);
   await page.getByPlaceholder("••••••••").fill(uiCreds.password);
   await page.getByRole("button", { name: /sign in/i }).click();
@@ -746,10 +750,12 @@ try {
 
   // ── 13h. Customers page ────────────────────────────────────────────────────
   console.log("  13h. Customers page...");
-  await page.goto(`${WEB_BASE}/app/customers`, { waitUntil: "networkidle" });
-  await sleep(1000);
+  await page.goto(`${WEB_BASE}/app/customers`, { waitUntil: "domcontentloaded" });
+  // Wait for auth bootstrap + lazy-load: spinner goes away → h1 appears
+  await page.locator('h1').filter({ hasText: /^Customers$/ }).waitFor({ timeout: 30000 }).catch(() => {});
+  await sleep(300);
   const custShot = await shot(run, page, "customers-page");
-  const custHeading = await page.getByRole("heading", { name: /customers/i }).isVisible().catch(() => false);
+  const custHeading = await page.locator('h1').filter({ hasText: /customers/i }).isVisible().catch(() => false);
   const addCustBtn = await page.getByRole("button", { name: /add customer/i }).isVisible().catch(() => false);
   record(run, {
     id: "UI-CUST-01",
@@ -803,10 +809,11 @@ try {
 
   // ── 13i. Appointments page ─────────────────────────────────────────────────
   console.log("  13i. Appointments page...");
-  await page.goto(`${WEB_BASE}/app/appointments`, { waitUntil: "networkidle" });
-  await sleep(1000);
+  await page.goto(`${WEB_BASE}/app/appointments`, { waitUntil: "domcontentloaded" });
+  await page.locator('h1').filter({ hasText: /^Appointments$/ }).waitFor({ timeout: 30000 }).catch(() => {});
+  await sleep(300);
   const aptShot = await shot(run, page, "appointments-page");
-  const aptHeading = await page.getByRole("heading", { name: /appointments/i }).isVisible().catch(() => false);
+  const aptHeading = await page.locator('h1').filter({ hasText: /appointments/i }).isVisible().catch(() => false);
   const newAptBtn = await page.getByRole("button", { name: /new appointment/i }).isVisible().catch(() => false);
   record(run, {
     id: "UI-APPT-01",
@@ -830,7 +837,7 @@ try {
 
   // ── 13j. SMS Inbox ─────────────────────────────────────────────────────────
   console.log("  13j. SMS Inbox...");
-  await page.goto(`${WEB_BASE}/app/inbox`, { waitUntil: "networkidle" });
+  await page.goto(`${WEB_BASE}/app/inbox`, { waitUntil: "domcontentloaded" });
   await sleep(1000);
   const inboxShot = await shot(run, page, "sms-inbox");
   const inboxVisible = (await page.url()).includes("/inbox") || (await page.getByText(/inbox|message/i).first().isVisible().catch(() => false));
@@ -845,7 +852,7 @@ try {
 
   // ── 13k. Templates page ────────────────────────────────────────────────────
   console.log("  13k. Templates page...");
-  await page.goto(`${WEB_BASE}/app/templates`, { waitUntil: "networkidle" });
+  await page.goto(`${WEB_BASE}/app/templates`, { waitUntil: "domcontentloaded" });
   await sleep(1000);
   const tplShot = await shot(run, page, "templates-page");
   const tplVisible = (await page.url()).includes("/templates") || (await page.getByText(/template/i).first().isVisible().catch(() => false));
@@ -860,10 +867,11 @@ try {
 
   // ── 13l. Settings page ─────────────────────────────────────────────────────
   console.log("  13l. Settings page...");
-  await page.goto(`${WEB_BASE}/app/settings`, { waitUntil: "networkidle" });
-  await sleep(1200);
+  await page.goto(`${WEB_BASE}/app/settings`, { waitUntil: "domcontentloaded" });
+  await page.locator('h1').filter({ hasText: /^Settings$/ }).waitFor({ timeout: 30000 }).catch(() => {});
+  await sleep(600);
   const settShot = await shot(run, page, "settings-page");
-  const settHeading = await page.getByRole("heading", { name: /settings/i }).isVisible().catch(() => false);
+  const settHeading = await page.locator('h1').filter({ hasText: /settings/i }).isVisible().catch(() => false);
   const bizTab = await page.getByRole("button", { name: /business/i }).first().isVisible().catch(() => false);
   record(run, {
     id: "UI-SETT-01",
@@ -901,7 +909,10 @@ try {
       if (m.type() === "error") bookErrors.push(m.text());
     });
 
-    await bookPage.goto(`${WEB_BASE}/book/${slugA}`, { waitUntil: "networkidle" });
+    await bookPage.goto(`${WEB_BASE}/book/${slugA}`, { waitUntil: "domcontentloaded" });
+    // Wait for spinner to disappear and business name to appear
+    await bookPage.waitForSelector('h1', { timeout: 15000 }).catch(() => {});
+    await sleep(800);
     const bookStep1Shot = await shot(run, bookPage, "book-step1-service");
     const bizName = await bookPage.getByText(/QA Salon/i).first().isVisible().catch(() => false);
     record(run, {
@@ -1014,7 +1025,9 @@ try {
     // Mobile viewport booking
     const mobilePage = await context.newPage();
     await mobilePage.setViewportSize({ width: 390, height: 844 });
-    await mobilePage.goto(`${WEB_BASE}/book/${slugA}`, { waitUntil: "networkidle" });
+    await mobilePage.goto(`${WEB_BASE}/book/${slugA}`, { waitUntil: "domcontentloaded" });
+    await mobilePage.waitForSelector('h1', { timeout: 12000 }).catch(() => {});
+    await sleep(500);
     const mobileShot = await shot(run, mobilePage, "book-mobile-viewport");
     const mobileRenders = (await mobilePage.locator("h1, h2").first().isVisible().catch(() => false));
     record(run, {
@@ -1089,37 +1102,41 @@ try {
   const qualityNotes = `
 ### Build-quality observations
 
-**API & Architecture**
-- The \`/api/v1/appointments/ingest\` (webhook ingestion) endpoint is not documented in an OpenAPI spec visible to the QA harness; ensure the ExternalId unique constraint is visible in API docs.
-- The \`/api/v1/webhooks/sms/inbound\` endpoint expects \`application/x-www-form-urlencoded\` (Twilio format) but no \`TwilioSignatureFilter\` bypass exists in dev mode — the webhook returns non-2xx if the Twilio signature header is absent. This blocks automated integration testing without a Twilio dev account. Recommendation: add a config flag to disable signature validation in dev/test.
-- \`POST /auth/register\` returns 201 with token — good. Login returns 200 — good.
-- Tenant isolation (cross-tenant customer + appointment reads) is enforced at the DB query filter level — confirmed by 404/403 on cross-tenant access.
+**[MAJOR] Auth bootstrap causes 15-30s spinner on every hard page navigation**
+When a user navigates directly to any /app/* route (or does a browser refresh), the React app's AuthProvider calls POST /api/v1/auth/refresh on mount to re-hydrate the JWT from the httpOnly cookie. While that async call is in flight, ProtectedRoute renders a full-screen spinner with no content. In QA testing this took 15–30 seconds before the page content appeared — the 30-second Playwright waitFor occasionally still times out. For users on slower connections this is a 15-30s blank screen on every F5 or direct link open. Recommendation: cache the user object in sessionStorage (not the token) so the spinner duration is reduced to near-zero on subsequent navigations; show a skeleton layout immediately.
 
-**Public Booking**
-- If the tenant has no services configured, step 1 shows "No services available" — good UX but the first-run experience needs a nudge toward Settings → Services.
-- Booking flow requires business hours to be enabled to get time slots. A freshly registered tenant has null \`businessHours\`, which causes no slots to appear on *any* date, leaving a new user confused. A "set up your hours first" callout on the booking page would help.
-- The date picker min/max is client-enforced only; server should also validate the requested date against business hours.
+**[MAJOR] At-risk KPI requires worker to run before it reflects reality**
+\`/stats/dashboard\` returns \`atRiskCount=0\` for manually created near-term unconfirmed appointments because the dashboard query counts only appointments where \`AtRiskAlertedAt IS NOT NULL\`. That field is set by the \`ScanAtRiskAsync\` background worker, which runs on a schedule. A freshly onboarded tenant creating appointments will see zero at-risk count until the worker fires. Consider changing the dashboard query to count \`Scheduled\` appointments within the at-risk window regardless of \`AtRiskAlertedAt\`, or explain the delay in the UI.
 
-**Dashboard**
-- The at-risk count KPI reads \`atRiskCount\` from \`/stats/dashboard\`. Near-term unconfirmed appointments do NOT automatically get \`atRiskAlertedAt\` set unless the at-risk worker runs (which is time-based). In testing, manually created appointments will not show as at-risk immediately.
-- Dashboard "Today's appointments" panel fetches both \`from\` and \`to\` set to today's date — confirmed working.
+**[MAJOR] Form labels not linked to inputs — accessibility gap**
+All modals (Add Customer, Create Appointment, Register form) use \`<label>\` elements whose text is NOT linked to inputs via \`htmlFor\`/\`id\`. Screen readers cannot associate labels with their inputs. This is a WCAG 2.1 Level A failure across all forms in the app. Fix: add matching \`id\` to each input and \`htmlFor\` on each label.
 
-**UI / UX**
-- Form labels use \`<label>\` elements but they are NOT linked to inputs via \`htmlFor\`/\`id\` — this is an accessibility gap across all modals (Customers, Appointments). Screen readers will not be able to associate label+input pairs. Severity: Major a11y.
-- Logout mechanism: not accessible from the initial dashboard view via an obvious button (depends on nav implementation). QA could not confirm logout button without inspecting AppLayout.
-- The "Add customer" modal button submit text is "Add customer" — same as the trigger. The Zod validation on the modal form is robust.
-- Search debounce is set (useDebouncedValue hook) — good for API call reduction.
+**[MAJOR] Public booking: no "set up hours" nudge for new tenants**
+A freshly registered tenant has \`businessHours = null\`. The public booking page at /book/:slug renders successfully but shows no available time slots on any date with no explanation. A new tenant sharing their booking link immediately after signup would confuse their customers. Recommendation: detect null/all-disabled businessHours on the booking page and show a "Business hours not configured yet" message with a link for the tenant.
 
-**SMS & Messaging**
-- Inbound SMS webhook (\`/api/v1/webhooks/sms/inbound\`) requires Twilio signature validation in prod. In dev with \`SmsProvider=Fake\`, the webhook still processes but does not actually send SMS. The QA harness verified the endpoint accepts POSTed form data.
-- Templates endpoint returns 200 with the seeded list — no CRUD for custom templates is exposed in the current UI.
+**[Minor] POST /customers phone validation: libphonenumber rejects some NANP numbers**
+During sweep runs, \`randPhone()\` (generating +1416XXXXXXX) intermittently produced a number rejected by libphonenumber with "Phone number is not valid." The exact offending numbers were not captured. The validation itself is correct but the QA harness phone generator should be hardened. Switched to \`+1647\` area code with known-valid range in the final sweep. Team should verify libphonenumber's NANP coverage is complete.
 
-**Settings**
-- The Settings page tabs (Business, Services, Hours, Notifications, Reviews, Booking) all render. The slug is auto-generated on registration and not user-editable in the UI (no slug field visible in Settings → Business tab) — this is intentional per architecture but worth surfacing to tenants.
+**[Minor] POST /customers returns 409 on duplicate phone (not find-or-create)**
+Per the QA scenario, calling POST /customers twice with the same phone number returns 409 Conflict on the second call. The design docs say "find-or-create by phone" but the implementation returns a conflict error. This is not a bug (409 is valid) but the team should confirm the intended design for the booking flow path (BookAsync does a separate find-or-create in PublicBookingService, so the API endpoint not doing it is fine).
 
-**Reliability**
-- \`dotnet build\` on the full solution emits 4 errors in IntegrationTests project (assembly info cache stale on OneDrive sync) — the API project builds cleanly. This is an environment issue, not a code defect.
-- Both background servers (API on :5216, Vite on :5173) start and respond within 12 seconds.
+**[Minor] SignalR negotiation fails when booking from unauthenticated pages**
+The public booking page (/book/:slug) does not use SignalR, but the app's main bundle includes SignalR hub connection code that fires globally. Console shows "Failed to complete negotiation with the server: TypeError: Failed to fetch" when the booking page runs in a context where hubs aren't reachable. This is noise — the SignalR connection should only be established inside the ProtectedRoute.
+
+**[Minor] Vite/font requests aborted during navigation**
+UI-NETWORK-01 captured ERR_ABORTED on \`fonts.gstatic.com\` and repeated POST /auth/refresh requests. The font abort is a race between navigation and font loading — cosmetic. The repeated auth/refresh aborts happen when multiple /app/* tabs try to refresh simultaneously (the second abort is intentional cancellation of a previous in-flight request).
+
+**[Good] Tenant isolation verified end-to-end**
+Tenant B receiving 404 on Tenant A's customer and appointment confirms EF Core global query filters are working correctly. The TenantId filter prevents cross-tenant data leakage.
+
+**[Good] Full public booking flow confirmed working**
+4-step UI flow (service → date/time → info → confirm) successfully creates a booking. The confirmation screen renders. Business hours enforcement gates slot availability. Mobile viewport (390x844) renders correctly.
+
+**[Good] Appointment state machine enforced server-side**
+Double-confirm returns 400, cancel after confirm returns 200, reschedule returns 200 — all state transitions are enforced with the Result<T> pattern returning proper error codes.
+
+**[Good] Webhook idempotency working**
+Duplicate ExternalId on /webhooks/appointments/inbound returns 200 on both calls (second call returns the existing record, not an error) — idempotency confirmed.
 `.trim();
 
   const reportPath = writeReport(run, {
