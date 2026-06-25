@@ -1,5 +1,12 @@
 import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
+import type { User } from "../hooks/useAuth";
+
+/** Shape returned by POST /auth/refresh (and /auth/login, /auth/register). */
+export interface AuthSession {
+  accessToken: string;
+  user: User;
+}
 
 let accessToken: string | null = null;
 const tokenListeners = new Set<() => void>();
@@ -52,18 +59,28 @@ export function extractErrorMessage(error: AxiosError<{ description?: string; ti
   return "Something went wrong. Please try again.";
 }
 
-let isRefreshing = false;
-let refreshQueue: Array<{
-  resolve: (token: string) => void;
-  reject: (err: unknown) => void;
-}> = [];
+let refreshPromise: Promise<AuthSession> | null = null;
 
-function processQueue(error: unknown, token: string | null) {
-  refreshQueue.forEach((p) => {
-    if (error) p.reject(error);
-    else p.resolve(token!);
-  });
-  refreshQueue = [];
+/**
+ * Single-flight refresh of the access token. Concurrent callers — the AuthProvider bootstrap and
+ * any number of 401 response-interceptor retries — share one in-flight POST /auth/refresh rather
+ * than each firing their own (which previously produced a burst of duplicate, often-aborted
+ * refresh requests on every page load). Sets the new in-memory access token on success.
+ *
+ * Uses the bare `axios` (not the `api` instance) so a 401 on the refresh endpoint itself does NOT
+ * re-enter this interceptor and loop.
+ */
+export function refreshSession(): Promise<AuthSession> {
+  refreshPromise ??= axios
+    .post<AuthSession>("/api/v1/auth/refresh", null, { withCredentials: true })
+    .then((res) => {
+      setAccessToken(res.data.accessToken);
+      return res.data;
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+  return refreshPromise;
 }
 
 api.interceptors.response.use(
@@ -81,37 +98,16 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (isRefreshing) {
-      return new Promise((resolve, reject) => {
-        refreshQueue.push({
-          resolve: (token: string) => {
-            original.headers.Authorization = `Bearer ${token}`;
-            resolve(api(original));
-          },
-          reject,
-        });
-      });
-    }
-
     original._retry = true;
-    isRefreshing = true;
 
     try {
-      const { data } = await axios.post("/api/v1/auth/refresh", null, {
-        withCredentials: true,
-      });
-      const newToken = data.accessToken;
-      setAccessToken(newToken);
-      processQueue(null, newToken);
+      const { accessToken: newToken } = await refreshSession();
       original.headers.Authorization = `Bearer ${newToken}`;
       return api(original);
     } catch (err) {
-      processQueue(err, null);
       setAccessToken(null);
       window.location.href = "/login";
       return Promise.reject(err);
-    } finally {
-      isRefreshing = false;
     }
   }
 );

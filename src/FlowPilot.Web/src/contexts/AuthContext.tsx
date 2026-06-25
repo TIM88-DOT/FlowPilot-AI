@@ -5,7 +5,7 @@ import {
   type ReactNode,
 } from "react";
 import axios from "axios";
-import { setAccessToken } from "../lib/api";
+import { setAccessToken, refreshSession } from "../lib/api";
 import { AuthContext, type User } from "../hooks/useAuth";
 
 // We cache only the (non-sensitive) user profile in sessionStorage so the app knows *who* is
@@ -45,11 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const bootstrap = useCallback(async () => {
     try {
-      const { data } = await axios.post("/api/v1/auth/refresh", null, {
-        withCredentials: true,
-      });
-      setAccessToken(data.accessToken);
-      applyUser(data.user);
+      // Shares the single-flight refresh with the axios 401 interceptor, so an optimistic render
+      // that fires queries before the token is set doesn't spawn a second /auth/refresh.
+      const session = await refreshSession();
+      applyUser(session.user);
     } catch {
       setAccessToken(null);
       applyUser(null);
