@@ -57,19 +57,19 @@ public sealed class ReminderOptimizationAgent : INotificationHandler<Appointment
               - If the first reminder was skipped, you may schedule this urgent one at StartsAt − 2h or
                 − 1h instead, so long as sendAt is in the future.
 
-        6. ** CRITICAL: Never hardcode "3h" or any fixed duration in the urgent reminder body. **
-           The body MUST describe the ACTUAL time remaining between sendAt and StartsAt, computed fresh.
-           Use natural phrasing:
-             - gap ≥ 2h  → "in {N}h" (e.g. "in 3h", "in 2h")
-             - gap 1h–2h → "in 1h" or "in {N}h"
-             - gap < 1h  → "in {M} min" (e.g. "in 45 min", "in 30 min")
-           Examples (compute based on YOUR chosen sendAt, do not copy the number literally):
-             FR gap=3h:   "Votre RDV est dans 3h à {time}. Merci de confirmer en répondant OUI."
-             FR gap=45m:  "Votre RDV est dans 45 min à {time}. Confirmez en répondant OUI."
-             EN gap=2h:   "Your {service} is in 2h at {time}. Please confirm by replying YES."
-             EN gap=30m:  "Your {service} is in 30 min at {time}. Reply YES to confirm."
+        6. ** CRITICAL: NEVER write a number of hours/minutes for the time remaining. **
+           Do NOT compute or guess the gap yourself — you are unreliable at it and the SMS may be sent
+           slightly later than your chosen sendAt. Instead, write the literal token {time_until} wherever
+           the remaining time should appear. The system fills it with the EXACT remaining time, computed
+           in code, at the moment the SMS is actually sent.
+           Examples (use the token verbatim — do NOT replace it with a number):
+             FR urgent: "Votre RDV est dans {time_until} à {time}. Merci de confirmer en répondant OUI."
+             EN urgent: "Your {service} is in {time_until} at {time}. Please confirm by replying YES."
+           If schedule_sms returns an error saying the body hardcodes a duration, rewrite it using {time_until}.
 
-        7. NEVER schedule a reminder for a sendAt that has already passed.
+        7. NEVER schedule a reminder for a sendAt that has already passed, or at/after the appointment
+           start time. The schedule_sms tool enforces this and will reject the call — if it returns such
+           an error, pick a valid future sendAt before the appointment, or skip that reminder entirely.
         8. ALWAYS call schedule_sms for every reminder you plan — do not just describe what you would do.
         9. When mentioning appointment times in SMS messages, ALWAYS use the tenant's local timezone ({TIMEZONE}).
            Convert UTC times accordingly. Do NOT show UTC times to customers.

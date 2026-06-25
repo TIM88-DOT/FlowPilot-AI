@@ -170,6 +170,44 @@ public class AppointmentLifecycleTests : IClassFixture<FlowPilotApiFactory>
         Assert.False(anyOutbound);
     }
 
+    [Fact]
+    public async Task DispatchDue_ResolvesTimeUntilTokenFromLiveAppointmentTime()
+    {
+        Guid tenantId = await AuthenticateAsync("time-until@test.dev");
+        CustomerDto customer = await CreateCustomerAsync("+14167000003", "Lina");
+        // Appointment ~2h out; reminder still Scheduled so it actually sends.
+        AppointmentDto appt = await CreateAppointmentAsync(customer.Id, DateTime.UtcNow.AddHours(2));
+
+        Guid messageId = await SeedDueReminderAsync(tenantId, customer.Id, appt.Id,
+            "Votre RDV est dans {time_until}. Répondez OUI pour confirmer.");
+
+        using (IServiceScope scope = _factory.Services.CreateScope())
+        {
+            IReminderDispatchService dispatch = scope.ServiceProvider.GetRequiredService<IReminderDispatchService>();
+            await dispatch.DispatchDueAsync();
+        }
+
+        using IServiceScope assertScope = _factory.Services.CreateScope();
+        AppDbContext db = assertScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        ScheduledMessage message = await db.ScheduledMessages
+            .IgnoreQueryFilters()
+            .SingleAsync(m => m.Id == messageId);
+        Assert.Equal(ScheduledMessageStatus.Sent, message.Status);
+
+        // Outbound messages (the dispatched reminder, plus possibly a booking confirmation): NONE may
+        // still carry the raw {time_until} token, and the reminder must show a concrete duration that
+        // was computed in C# from the live appointment time.
+        List<Message> outbound = await db.Messages
+            .IgnoreQueryFilters()
+            .Where(m => m.CustomerId == customer.Id && m.Direction == MessageDirection.Outbound)
+            .ToListAsync();
+
+        Assert.NotEmpty(outbound);
+        Assert.All(outbound, m => Assert.DoesNotContain("{time_until}", m.Body));
+        Assert.Contains(outbound, m => System.Text.RegularExpressions.Regex.IsMatch(m.Body, @"dans \d+\s*(h|min)"));
+    }
+
     // ---------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------
@@ -185,7 +223,7 @@ public class AppointmentLifecycleTests : IClassFixture<FlowPilotApiFactory>
         return appointment.AtRiskAlertedAt;
     }
 
-    private async Task<Guid> SeedDueReminderAsync(Guid tenantId, Guid customerId, Guid appointmentId)
+    private async Task<Guid> SeedDueReminderAsync(Guid tenantId, Guid customerId, Guid appointmentId, string? body = null)
     {
         using IServiceScope scope = _factory.Services.CreateScope();
         AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -204,7 +242,7 @@ public class AppointmentLifecycleTests : IClassFixture<FlowPilotApiFactory>
             CustomerId = customerId,
             Status = ScheduledMessageStatus.Pending,
             ScheduledAt = DateTime.UtcNow.AddMinutes(-5), // due
-            RenderedBody = "Dernière chance : confirmez votre rendez-vous."
+            RenderedBody = body ?? "Dernière chance : confirmez votre rendez-vous."
         };
         db.ScheduledMessages.Add(message);
 

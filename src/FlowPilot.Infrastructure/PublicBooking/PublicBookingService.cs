@@ -149,14 +149,16 @@ public sealed class PublicBookingService : IPublicBookingService
         DateTime dayStartUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(dayStartLocal, DateTimeKind.Unspecified), tz);
         DateTime dayEndUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(dayEndLocal, DateTimeKind.Unspecified), tz);
 
-        List<(DateTime StartsAt, DateTime EndsAt)> existing = await _db.Appointments
+        var existingRows = await _db.Appointments
             .AsNoTracking()
             .Where(a => a.StartsAt >= dayStartUtc && a.StartsAt < dayEndUtc
                 && a.Status != AppointmentStatus.Cancelled
                 && a.Status != AppointmentStatus.Rescheduled)
             .Select(a => new { a.StartsAt, a.EndsAt })
-            .ToListAsync(ct)
-            .ContinueWith(t => t.Result.Select(a => (a.StartsAt, a.EndsAt)).ToList(), ct);
+            .ToListAsync(ct);
+
+        List<(DateTime StartsAt, DateTime EndsAt)> existing =
+            existingRows.Select(a => (a.StartsAt, a.EndsAt)).ToList();
 
         // Filter slots: convert each local slot to UTC, skip past ones, check overlaps
         DateTime earliestAllowedUtc = DateTime.UtcNow.AddHours(minAdvanceHours);

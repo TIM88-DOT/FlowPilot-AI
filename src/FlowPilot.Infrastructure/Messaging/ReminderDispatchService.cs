@@ -114,11 +114,19 @@ public sealed class ReminderDispatchService : IReminderDispatchService
 
         string senderPhone = settings?.DefaultSenderPhone ?? "+10000000000";
 
+        // Resolve the {time_until} token against the live appointment time at the moment of sending,
+        // so the customer always sees the correct remaining time regardless of dispatch delay.
+        string body = ReminderTimePhrase.Resolve(
+            scheduledMessage.RenderedBody,
+            scheduledMessage.Appointment.StartsAt,
+            DateTime.UtcNow,
+            scheduledMessage.Customer.PreferredLanguage);
+
         // Send via provider
         SmsResult result = await _smsProvider.SendAsync(
             senderPhone,
             scheduledMessage.Customer.Phone,
-            scheduledMessage.RenderedBody,
+            body,
             cancellationToken);
 
         if (result.Success)
@@ -133,7 +141,7 @@ public sealed class ReminderDispatchService : IReminderDispatchService
                 CustomerId = scheduledMessage.CustomerId,
                 Direction = MessageDirection.Outbound,
                 Status = MessageStatus.Sent,
-                Body = scheduledMessage.RenderedBody,
+                Body = body,
                 FromPhone = senderPhone,
                 ToPhone = scheduledMessage.Customer.Phone,
                 ProviderMessageId = result.ProviderMessageId,
