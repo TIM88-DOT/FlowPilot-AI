@@ -1,0 +1,24 @@
+# gitleaks configuration for FlowPilot AI
+# Extends the upstream default ruleset and adds an allowlist for known,
+# intentional local-dev-only literals so the scan doesn't flag them.
+# NOTE: these are dev/CI placeholders only — never reuse them for any real
+# environment. Real secrets belong in Azure Key Vault / GitHub Actions secrets.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local dev / CI placeholder credentials — not real secrets"
+
+# Files that legitimately contain dev-only credentials
+paths = [
+  '''docker-compose\.yml''',
+  '''\.github/workflows/ci\.yml''',
+]
+
+# Specific literal values used across local dev + CI
+regexes = [
+  '''flowpilot_dev_pass''',
+  '''failsafe123''',
+  '''Password=flowpilot_dev_pass''',
+]

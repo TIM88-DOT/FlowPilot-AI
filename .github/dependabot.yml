@@ -1,0 +1,41 @@
+version: 2
+updates:
+  # Backend — NuGet across the solution (FlowPilot.sln + all .csproj)
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    groups:
+      nuget-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Frontend — npm for the Vite/React app
+  - package-ecosystem: "npm"
+    directory: "/src/FlowPilot.Web"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    groups:
+      npm-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Keep the GitHub Actions used by our workflows current
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+    groups:
+      actions-all:
+        patterns:
+          - "*"
