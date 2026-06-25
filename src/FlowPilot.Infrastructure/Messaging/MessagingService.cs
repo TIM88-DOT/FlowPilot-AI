@@ -370,13 +370,14 @@ public sealed class MessagingService : IMessagingService
 
         _db.Messages.Add(message);
 
-        // Increment usage record
+        await _db.SaveChangesAsync(cancellationToken);
+
+        // Increment usage record atomically (see UsageTracker — concurrent sends share the
+        // single monthly UsageRecord and would otherwise race the unique index).
         if (smsResult.Success)
         {
-            await IncrementUsageAsync(cancellationToken);
+            await UsageTracker.IncrementSmsSentAsync(_db, _currentTenant.TenantId, cancellationToken);
         }
-
-        await _db.SaveChangesAsync(cancellationToken);
 
         if (!smsResult.Success)
         {
@@ -389,36 +390,4 @@ public sealed class MessagingService : IMessagingService
             message.Id, smsResult.ProviderMessageId, body, smsResult.SegmentCount));
     }
 
-    /// <summary>
-    /// Increments the SmsSent counter on the current month's UsageRecord.
-    /// Creates the record if it doesn't exist yet.
-    /// </summary>
-    private async Task IncrementUsageAsync(CancellationToken cancellationToken)
-    {
-        DateTime now = DateTime.UtcNow;
-        Plan? plan = await _db.Plans
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (plan is null)
-            return;
-
-        UsageRecord? usage = await _db.UsageRecords
-            .FirstOrDefaultAsync(u => u.PlanId == plan.Id && u.Year == now.Year && u.Month == now.Month, cancellationToken);
-
-        if (usage is null)
-        {
-            usage = new UsageRecord
-            {
-                PlanId = plan.Id,
-                Year = now.Year,
-                Month = now.Month,
-                SmsSent = 1
-            };
-            _db.UsageRecords.Add(usage);
-        }
-        else
-        {
-            usage.SmsSent++;
-        }
-    }
 }

@@ -148,8 +148,9 @@ public sealed class ReminderDispatchService : IReminderDispatchService
                 SegmentCount = result.SegmentCount
             });
 
-            // Increment usage
-            await IncrementUsageAsync(scheduledMessage.TenantId, cancellationToken);
+            // Increment usage atomically (see UsageTracker — concurrent sends share the
+            // single monthly UsageRecord and would otherwise race the unique index).
+            await UsageTracker.IncrementSmsSentAsync(_db, scheduledMessage.TenantId, cancellationToken);
 
             _logger.LogInformation(
                 "Dispatched ScheduledMessage {MessageId} to {Phone}",
@@ -164,36 +165,4 @@ public sealed class ReminderDispatchService : IReminderDispatchService
         }
     }
 
-    private async Task IncrementUsageAsync(Guid tenantId, CancellationToken cancellationToken)
-    {
-        DateTime now = DateTime.UtcNow;
-
-        Plan? plan = await _db.Plans
-            .IgnoreQueryFilters() // Cross-tenant access for worker
-            .FirstOrDefaultAsync(p => p.TenantId == tenantId && !p.IsDeleted, cancellationToken);
-
-        if (plan is null)
-            return;
-
-        UsageRecord? usage = await _db.UsageRecords
-            .IgnoreQueryFilters() // Cross-tenant access for worker
-            .FirstOrDefaultAsync(u => u.PlanId == plan.Id && u.Year == now.Year && u.Month == now.Month && !u.IsDeleted, cancellationToken);
-
-        if (usage is null)
-        {
-            usage = new UsageRecord
-            {
-                TenantId = tenantId,
-                PlanId = plan.Id,
-                Year = now.Year,
-                Month = now.Month,
-                SmsSent = 1
-            };
-            _db.UsageRecords.Add(usage);
-        }
-        else
-        {
-            usage.SmsSent++;
-        }
-    }
 }
