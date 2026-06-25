@@ -26,10 +26,16 @@ export function useAppointmentEvents() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     });
 
+    const unsubMissed = on("AppointmentMissed", () => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    });
+
     return () => {
       unsubStatus();
       unsubCreated();
       unsubAtRisk();
+      unsubMissed();
     };
   }, [on, queryClient]);
 }

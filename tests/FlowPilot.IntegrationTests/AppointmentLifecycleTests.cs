@@ -208,9 +208,72 @@ public class AppointmentLifecycleTests : IClassFixture<FlowPilotApiFactory>
         Assert.Contains(outbound, m => System.Text.RegularExpressions.Regex.IsMatch(m.Body, @"dans \d+\s*(h|min)"));
     }
 
+    // =====================================================================
+    // NO-SHOW FOLLOW-UP — overdue unconfirmed appointment triggers a "we missed you" SMS
+    // =====================================================================
+
+    [Fact]
+    public async Task ScanOverdue_UnconfirmedAppointment_MarksMissedAndSendsFollowUpSms()
+    {
+        Guid tenantId = await AuthenticateAsync("no-show@test.dev");
+        CustomerDto customer = await CreateCustomerAsync("+14167000004", "Sofia");
+
+        // An unconfirmed (Scheduled) appointment whose end time is well in the past → no-show.
+        Guid appointmentId = await SeedOverdueAppointmentAsync(tenantId, customer.Id);
+
+        using (IServiceScope scope = _factory.Services.CreateScope())
+        {
+            IAppointmentLifecycleService lifecycle = scope.ServiceProvider.GetRequiredService<IAppointmentLifecycleService>();
+            await lifecycle.ScanOverdueAsync(TimeSpan.FromMinutes(15));
+        }
+
+        using IServiceScope assertScope = _factory.Services.CreateScope();
+        AppDbContext db = assertScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        Appointment appointment = await db.Appointments
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .SingleAsync(a => a.Id == appointmentId);
+        Assert.Equal(AppointmentStatus.Missed, appointment.Status);
+
+        // The no-show follow-up handler must have logged an outbound "we missed you" SMS.
+        List<Message> outbound = await db.Messages
+            .IgnoreQueryFilters()
+            .Where(m => m.CustomerId == customer.Id && m.Direction == MessageDirection.Outbound)
+            .ToListAsync();
+
+        Assert.Contains(outbound, m => m.Body.Contains("absence", StringComparison.OrdinalIgnoreCase));
+    }
+
     // ---------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------
+
+    private async Task<Guid> SeedOverdueAppointmentAsync(Guid tenantId, Guid customerId)
+    {
+        using IServiceScope scope = _factory.Services.CreateScope();
+        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        // Opt the customer in so the follow-up SMS is provably gated by the no-show, not consent.
+        Customer customer = await db.Customers
+            .IgnoreQueryFilters()
+            .SingleAsync(c => c.Id == customerId);
+        customer.ConsentStatus = ConsentStatus.OptedIn;
+
+        Appointment appointment = new()
+        {
+            TenantId = tenantId,
+            CustomerId = customerId,
+            Status = AppointmentStatus.Scheduled, // never confirmed → no-show on overdue scan
+            StartsAt = DateTime.UtcNow.AddHours(-2),
+            EndsAt = DateTime.UtcNow.AddHours(-1),
+            ServiceName = "Haircut"
+        };
+        db.Appointments.Add(appointment);
+
+        await db.SaveChangesAsync();
+        return appointment.Id;
+    }
 
     private async Task<DateTime?> ReadAtRiskAlertedAtAsync(Guid appointmentId)
     {
