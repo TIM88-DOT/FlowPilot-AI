@@ -187,6 +187,13 @@ export default function BookingPage() {
     return !!day?.enabled;
   })();
 
+  // A freshly registered tenant has no business hours configured (null or all days disabled),
+  // which means zero bookable slots on every date. Detect that so we can show an explanatory
+  // callout instead of an empty date picker that silently offers nothing.
+  const hasBookableHours =
+    !!business?.businessHours &&
+    Object.values(business.businessHours).some((day) => day.enabled);
+
   const { data: slots, isLoading: loadingSlots } = useQuery<TimeSlotDto[]>({
     queryKey: ["public-slots", slug, selectedDate, selectedService?.id],
     queryFn: () =>
@@ -406,6 +413,29 @@ export default function BookingPage() {
               {selectedService?.name} — {selectedService?.durationMinutes} min
             </p>
 
+            {!hasBookableHours ? (
+              <div className="rounded-2xl border border-amber/30 bg-amber/10 p-4 text-center">
+                <p className="text-[14px] font-semibold text-ink mb-1">
+                  Online booking isn't available yet
+                </p>
+                <p className="text-[13px] text-ink-muted">
+                  {business.businessName} hasn't set up its booking hours yet.
+                  {business.businessPhone
+                    ? " Please call to book your appointment:"
+                    : " Please contact the business directly to book."}
+                </p>
+                {business.businessPhone && (
+                  <a
+                    href={`tel:${business.businessPhone}`}
+                    className="inline-flex items-center gap-1.5 mt-3 text-[14px] font-semibold text-teal hover:text-teal-light"
+                  >
+                    <Phone className="w-4 h-4" />
+                    {business.businessPhone}
+                  </a>
+                )}
+              </div>
+            ) : (
+              <>
             {business.businessHours && (
               <p className="text-[12px] text-ink-faint mb-4">
                 Open: {getOpenDaysSummary(business.businessHours)}
@@ -413,11 +443,12 @@ export default function BookingPage() {
             )}
 
             <div className="mb-5">
-              <label className="block text-[13px] font-medium text-ink mb-1.5">
+              <label htmlFor="booking-date" className="block text-[13px] font-medium text-ink mb-1.5">
                 <Calendar className="w-3.5 h-3.5 inline mr-1" />
                 Date
               </label>
               <input
+                id="booking-date"
                 type="date"
                 value={selectedDate}
                 onChange={(e) => {
@@ -479,6 +510,8 @@ export default function BookingPage() {
                 </div>
               );
             })()}
+              </>
+            )}
           </div>
         )}
 
@@ -494,8 +527,9 @@ export default function BookingPage() {
             <form onSubmit={handleSubmit(handleInfoSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[13px] font-medium text-ink mb-1.5">First name *</label>
+                  <label htmlFor="booking-firstName" className="block text-[13px] font-medium text-ink mb-1.5">First name *</label>
                   <input
+                    id="booking-firstName"
                     {...register("firstName")}
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors"
                     placeholder="John"
@@ -503,8 +537,9 @@ export default function BookingPage() {
                   {errors.firstName && <p className="text-[12px] text-red-500 mt-1">{errors.firstName.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-[13px] font-medium text-ink mb-1.5">Last name</label>
+                  <label htmlFor="booking-lastName" className="block text-[13px] font-medium text-ink mb-1.5">Last name</label>
                   <input
+                    id="booking-lastName"
                     {...register("lastName")}
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors"
                     placeholder="Doe"
@@ -513,11 +548,12 @@ export default function BookingPage() {
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium text-ink mb-1.5">
+                <label htmlFor="booking-phone" className="block text-[13px] font-medium text-ink mb-1.5">
                   <Phone className="w-3.5 h-3.5 inline mr-1" />
                   Phone *
                 </label>
                 <input
+                  id="booking-phone"
                   {...register("phone")}
                   type="tel"
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors"
@@ -527,8 +563,9 @@ export default function BookingPage() {
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium text-ink mb-1.5">Email</label>
+                <label htmlFor="booking-email" className="block text-[13px] font-medium text-ink mb-1.5">Email</label>
                 <input
+                  id="booking-email"
                   {...register("email")}
                   type="email"
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors"
@@ -538,8 +575,9 @@ export default function BookingPage() {
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium text-ink mb-1.5">Notes</label>
+                <label htmlFor="booking-notes" className="block text-[13px] font-medium text-ink mb-1.5">Notes</label>
                 <textarea
+                  id="booking-notes"
                   {...register("notes")}
                   rows={2}
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors resize-none"
@@ -548,8 +586,9 @@ export default function BookingPage() {
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium text-ink mb-1.5">SMS Language</label>
+                <label htmlFor="booking-language" className="block text-[13px] font-medium text-ink mb-1.5">SMS Language</label>
                 <select
+                  id="booking-language"
                   value={preferredLanguage}
                   onChange={(e) => setPreferredLanguage(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink focus:outline-none focus:border-teal transition-colors"

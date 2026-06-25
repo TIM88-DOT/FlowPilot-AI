@@ -59,8 +59,9 @@ export default function RegisterPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[13px] font-medium text-ink mb-1.5">First name</label>
+              <label htmlFor="reg-firstName" className="block text-[13px] font-medium text-ink mb-1.5">First name</label>
               <input
+                id="reg-firstName"
                 type="text"
                 {...register("firstName")}
                 className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors"
@@ -71,8 +72,9 @@ export default function RegisterPage() {
               )}
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-ink mb-1.5">Last name</label>
+              <label htmlFor="reg-lastName" className="block text-[13px] font-medium text-ink mb-1.5">Last name</label>
               <input
+                id="reg-lastName"
                 type="text"
                 {...register("lastName")}
                 className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors"
@@ -85,8 +87,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-[13px] font-medium text-ink mb-1.5">Business name</label>
+            <label htmlFor="reg-businessName" className="block text-[13px] font-medium text-ink mb-1.5">Business name</label>
             <input
+              id="reg-businessName"
               type="text"
               {...register("businessName")}
               className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors"
@@ -98,8 +101,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-[13px] font-medium text-ink mb-1.5">Email</label>
+            <label htmlFor="reg-email" className="block text-[13px] font-medium text-ink mb-1.5">Email</label>
             <input
+              id="reg-email"
               type="email"
               {...register("email")}
               className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors"
@@ -111,8 +115,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-[13px] font-medium text-ink mb-1.5">Password</label>
+            <label htmlFor="reg-password" className="block text-[13px] font-medium text-ink mb-1.5">Password</label>
             <input
+              id="reg-password"
               type="password"
               {...register("password")}
               className="w-full px-4 py-2.5 rounded-xl border border-border bg-warm-white text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-teal transition-colors"

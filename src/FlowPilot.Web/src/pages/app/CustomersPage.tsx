@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useId, cloneElement, isValidElement, type ReactElement } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -795,10 +795,18 @@ function Field({
   error?: string;
   children: React.ReactNode;
 }) {
+  // Auto-wire label↔input: generate a stable id and inject it onto the single form control so the
+  // <label htmlFor> points at it (WCAG 2.1 — labels must be programmatically associated).
+  const id = useId();
+  const control = isValidElement(children)
+    ? cloneElement(children as ReactElement<{ id?: string }>, { id })
+    : children;
   return (
     <div>
-      <label className="block text-[13px] font-medium text-ink mb-1.5">{label}</label>
-      {children}
+      <label htmlFor={id} className="block text-[13px] font-medium text-ink mb-1.5">
+        {label}
+      </label>
+      {control}
       {error && <p className="text-[12px] text-red-500 mt-1">{error}</p>}
     </div>
   );

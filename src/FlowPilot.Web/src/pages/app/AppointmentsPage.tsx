@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useId, cloneElement, isValidElement, type ReactElement } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, ChevronRight, ChevronLeft, Calendar, Clock, RefreshCw, Search, Phone, Mail, AlertTriangle, ShieldCheck } from "lucide-react";
@@ -640,37 +640,33 @@ function CreateAppointmentModal({
           </select>
         </Field>
         <Field label="Service">
-          {activeServices.length > 0 ? (
-            <>
-              <input
-                {...register("serviceName", {
-                  onChange: (e) => handleServiceChange(e.target.value),
-                })}
-                list="service-options"
-                placeholder="Select or type a custom service..."
-                className={inputCls}
-              />
-              <datalist id="service-options">
-                {activeServices.map((s) => (
-                  <option key={s.id} value={s.name}>
-                    {s.name} — {s.durationMinutes}min{s.price ? ` · ${s.price}` : ""}
-                  </option>
-                ))}
-              </datalist>
-            </>
-          ) : (
-            <input
-              {...register("serviceName")}
-              placeholder="e.g. Haircut, Consultation..."
-              className={inputCls}
-            />
-          )}
-          {activeServices.length === 0 && (
-            <p className="text-[11px] text-ink-faint mt-1">
-              Tip: Add services in Settings → Services to get a dropdown here.
-            </p>
-          )}
+          <input
+            {...register("serviceName", {
+              onChange: (e) => handleServiceChange(e.target.value),
+            })}
+            list={activeServices.length > 0 ? "service-options" : undefined}
+            placeholder={
+              activeServices.length > 0
+                ? "Select or type a custom service..."
+                : "e.g. Haircut, Consultation..."
+            }
+            className={inputCls}
+          />
         </Field>
+        {activeServices.length > 0 && (
+          <datalist id="service-options">
+            {activeServices.map((s) => (
+              <option key={s.id} value={s.name}>
+                {s.name} — {s.durationMinutes}min{s.price ? ` · ${s.price}` : ""}
+              </option>
+            ))}
+          </datalist>
+        )}
+        {activeServices.length === 0 && (
+          <p className="text-[11px] text-ink-faint -mt-2">
+            Tip: Add services in Settings → Services to get a dropdown here.
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Date & time" error={errors.startsAt?.message}>
             <input type="datetime-local" {...register("startsAt")} className={inputCls} />
@@ -842,10 +838,18 @@ function Field({
   error?: string;
   children: React.ReactNode;
 }) {
+  // Auto-wire label↔input: generate a stable id and inject it onto the single form control so the
+  // <label htmlFor> points at it (WCAG 2.1 — labels must be programmatically associated).
+  const id = useId();
+  const control = isValidElement(children)
+    ? cloneElement(children as ReactElement<{ id?: string }>, { id })
+    : children;
   return (
     <div>
-      <label className="block text-[13px] font-medium text-ink mb-1.5">{label}</label>
-      {children}
+      <label htmlFor={id} className="block text-[13px] font-medium text-ink mb-1.5">
+        {label}
+      </label>
+      {control}
       {error && <p className="text-[12px] text-red-500 mt-1">{error}</p>}
     </div>
   );

@@ -2,13 +2,25 @@ import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
 
 let accessToken: string | null = null;
+const tokenListeners = new Set<() => void>();
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
+  tokenListeners.forEach((listener) => listener());
 }
 
 export function getAccessToken() {
   return accessToken;
+}
+
+/**
+ * Subscribe to access-token changes. Used by `useSyncExternalStore` consumers so React can react
+ * to the in-memory token becoming available/cleared (e.g. gating the SignalR connection until a
+ * valid token exists). Returns an unsubscribe function.
+ */
+export function subscribeAccessToken(listener: () => void): () => void {
+  tokenListeners.add(listener);
+  return () => tokenListeners.delete(listener);
 }
 
 const api = axios.create({

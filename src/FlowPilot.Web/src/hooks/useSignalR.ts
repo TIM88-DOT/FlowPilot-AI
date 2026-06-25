@@ -10,12 +10,17 @@ import { getAccessToken } from "../lib/api";
 type EventHandler = (...args: unknown[]) => void;
 
 /**
- * SignalR logger that demotes the expected "aborted during negotiation" noise
- * (fired on intentional navigation / React Strict Mode double-mount) to debug
- * level, while forwarding all genuine warnings and errors to the console so
- * real hub failures still surface.
+ * SignalR logger that demotes the expected, self-healing negotiation noise to debug level, while
+ * forwarding all genuine warnings and errors to the console so real hub failures still surface.
+ *
+ * Expected/transient cases:
+ *  - "stopped during negotiation" / "Failed to start the connection" — intentional navigation or
+ *    React Strict Mode double-mount aborts the first connection.
+ *  - "Failed to complete negotiation ... 401" — the negotiate request raced the in-flight
+ *    /auth/refresh (token not set yet for those ~ms). withAutomaticReconnect retries with a valid
+ *    token, so this is noise, not a real failure.
  */
-const NEGOTIATION_ABORT = /stopped during negotiation|Failed to start the connection/i;
+const NEGOTIATION_ABORT = /stopped during negotiation|Failed to (start the connection|complete negotiation)/i;
 
 const signalRLogger: ILogger = {
   log(logLevel, message) {
@@ -37,12 +42,18 @@ const signalRLogger: ILogger = {
 /**
  * Manages a SignalR hub connection with automatic reconnection.
  * Returns a stable `on` function to subscribe to hub events.
+ *
+ * Pass `enabled: false` to defer connecting until prerequisites are met (e.g. a valid access
+ * token exists). Connecting without a token makes the negotiate request fail with a 401, which
+ * surfaces as console noise on unauthenticated or not-yet-bootstrapped contexts.
  */
-export function useSignalR(hubUrl: string) {
+export function useSignalR(hubUrl: string, enabled = true) {
   const connectionRef = useRef<HubConnection | null>(null);
   const handlersRef = useRef<Map<string, Set<EventHandler>>>(new Map());
 
   useEffect(() => {
+    if (!enabled) return;
+
     let stopped = false;
 
     const connection = new HubConnectionBuilder()
@@ -78,7 +89,7 @@ export function useSignalR(hubUrl: string) {
       connection.stop();
       connectionRef.current = null;
     };
-  }, [hubUrl]);
+  }, [hubUrl, enabled]);
 
   const on = useCallback((event: string, handler: EventHandler) => {
     if (!handlersRef.current.has(event)) {
