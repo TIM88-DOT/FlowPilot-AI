@@ -133,13 +133,14 @@ function getDayHours(hours: BusinessHours | null, dateStr: string): DayHours | n
 }
 
 function getOpenDaysSummary(hours: BusinessHours | null): string {
+  // Only rendered inside the hasBookableHours branch, so there's always ≥1 open day here.
   if (!hours) return "";
   const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const keys: (keyof BusinessHours)[] = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-  const open = keys
+  return keys
     .map((k, i) => (hours[k].enabled ? labels[i] : null))
-    .filter(Boolean);
-  return open.length > 0 ? open.join(", ") : "No open days configured";
+    .filter(Boolean)
+    .join(", ");
 }
 
 // ---------------------------------------------------------------------------
